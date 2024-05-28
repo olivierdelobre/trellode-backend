@@ -1,8 +1,11 @@
 package card
 
 import (
+	"errors"
 	"net/http"
+	"time"
 	"trellode-go/internal/models"
+	"trellode-go/internal/utils/messages"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -61,7 +64,18 @@ func (repo CardRepository) UpdateCard(context models.Context, card *models.Card)
 }
 
 func (repo CardRepository) ArchiveCard(context models.Context, id int) (int, error) {
-	err := repo.db.Where("id = ?", id).Delete(&models.Card{}).Error
+	card, severity, err := repo.GetCard(context, id)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return severity, err
+	}
+	if card.ID == 0 {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
+
+	// set archivedAt to current time
+	now := time.Now()
+	card.ArchivedAt = &now
+	err = repo.db.Save(&card).Error
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

@@ -39,7 +39,7 @@ func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Bo
 		Preload("Lists.Cards.Comments", func(db *gorm.DB) *gorm.DB {
 			return db.Order("comments.created_at DESC")
 		}).
-		Where("id = ?", id).
+		Where("id = ? AND archived_at IS NULL", id).
 		First(&board).Error
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -54,7 +54,7 @@ func (repo BoardRepository) GetBoards(context models.Context) ([]*models.Board, 
 		Preload("Lists", repo.db.Where("archived_at IS NULL")).
 		Preload("Lists.Cards", repo.db.Where("archived_at IS NULL")).
 		Preload("Lists.Cards.Comments").
-		Where("user_id = ?", context.UserId).
+		Where("user_id = ? AND archived_at IS NULL", context.UserId).
 		Find(&boards).Error
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -93,13 +93,45 @@ func (repo BoardRepository) ArchiveBoard(context models.Context, id int) (int, e
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
 	}
 
-	// set archivedAt to current time
+	tx := repo.db.Begin()
+
 	now := time.Now()
 	board.ArchivedAt = &now
-	err = repo.db.Save(&board).Error
+	err = tx.Save(&board).Error
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
+
+	// set archivedAt to current time
+	board.ArchivedAt = &now
+	err = tx.Save(&board).Error
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	lists := board.Lists
+	for _, list := range lists {
+		// set archivedAt to current time
+		list.ArchivedAt = &now
+		err = tx.Save(&list).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+
+		cards := list.Cards
+		for _, card := range cards {
+			// set archivedAt to current time
+			card.ArchivedAt = &now
+			err = tx.Save(&card).Error
+			if err != nil {
+				tx.Rollback()
+				return http.StatusInternalServerError, err
+			}
+		}
+	}
+
+	tx.Commit()
 
 	return http.StatusAccepted, nil
 }

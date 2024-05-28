@@ -71,13 +71,25 @@ func (repo ListRepository) ArchiveList(context models.Context, id int) (int, err
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
+	tx := repo.db.Begin()
+
 	// set archivedAt to current time
 	now := time.Now()
 	list.ArchivedAt = &now
-	err = repo.db.Save(&list).Error
+	err = tx.Save(&list).Error
 	if err != nil {
+		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
+
+	// archive all cards
+	err = tx.Model(&models.Card{}).Where("list_id = ?", id).Update("archived_at", now).Error
+	if err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+
+	tx.Commit()
 
 	return http.StatusAccepted, nil
 }
