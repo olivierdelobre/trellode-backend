@@ -1,0 +1,15 @@
+{
+  "count": 1,
+  "trellode": [
+    {
+      "address": "batiment.mxh@epfl.ch",
+      "id": 104,
+      "type": "batiments",
+      "subtype": "batiment",
+      "unit": "mxh@epfl.ch",
+      "unitid": 0,
+      "usualcode": "",
+      "memberscount": 25
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+[NoMatchInLDAP]
+other = "Vous ne pouvez pas créer d'affiliation, vous n'avez pas d'accréditation dans EPFL, CL ou CL-COURS"
+
+[HMACIsTempered]
+other = "Le HMAC est invalide"
+
+[OneTimeTokenExpired]
+other = "Le token a expiré (> 60 mins), veuillez renouveller l'opération"
+
+[AffiliationExists]
+other = "L'affiliation existe déjà pour "
+
+[NotAuthorized]
+other = "Vous n'êtes pas autorisé"
+
+[EduIdApiCallFailure]
+other = "Echec de l'appel à l'API Switch EduId"
+
+[EduIdApiResponseParsingFailure]
+other = "Echec du parsing de la réponse de l'API Switch EduId"
+
+[CannotMarshallAffiliation]
+other = "Impossible d'unmarshal l'affiliation"
+
+[CannotBuildRequest]
+other = "Impossible de construire la requête"
+
+[CannotSendRequest]
+other = "Impossible d'envoyer la requête"
+
+[CannotReadResponse]
+other = "Impossible de lire la réponse"
+
+[InvalidAffiliationData]
+other = "Données de l'affilitation invalide"

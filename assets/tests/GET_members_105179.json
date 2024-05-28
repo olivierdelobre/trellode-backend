@@ -1,0 +1,109 @@
+{
+  "count": 13,
+  "members": [
+    {
+      "persid": 321014,
+      "firstname": "Arnaud Jacques Ivrin",
+      "lastname": "Assad",
+      "firstnameusual": "Arnaud",
+      "lastnameusual": "",
+      "email": "arnaud.assad@epfl.ch"
+    },
+    {
+      "persid": 366852,
+      "firstname": "Marine Francine Pierrette",
+      "lastname": "Blanchard",
+      "firstnameusual": "Marine",
+      "lastnameusual": "",
+      "email": "marine.blanchard@epfl.ch"
+    },
+    {
+      "persid": 104782,
+      "firstname": "Ion",
+      "lastname": "Cionca",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "ion.cionca@epfl.ch"
+    },
+    {
+      "persid": 268229,
+      "firstname": "Olivier Romain",
+      "lastname": "Delobre",
+      "firstnameusual": "Olivier",
+      "lastnameusual": "",
+      "email": "olivier.delobre@epfl.ch"
+    },
+    {
+      "persid": 161014,
+      "firstname": "Quentin",
+      "lastname": "Estoppey",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "quentin.estoppey@epfl.ch"
+    },
+    {
+      "persid": 160218,
+      "firstname": "Michael",
+      "lastname": "Jubin",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "michael.jubin@epfl.ch"
+    },
+    {
+      "persid": 361863,
+      "firstname": "Matthias Thomas",
+      "lastname": "Leresche",
+      "firstnameusual": "Maude",
+      "lastnameusual": "",
+      "email": "maude.leresche@epfl.ch"
+    },
+    {
+      "persid": 164486,
+      "firstname": "Pierre",
+      "lastname": "Mellier",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "pierre.mellier@epfl.ch"
+    },
+    {
+      "persid": 329788,
+      "firstname": "Maria de los Angeles",
+      "lastname": "Mora",
+      "firstnameusual": "Angeles",
+      "lastnameusual": "",
+      "email": "angeles.mora@epfl.ch"
+    },
+    {
+      "persid": 292571,
+      "firstname": "Pascal Adrien Johann",
+      "lastname": "Rolle",
+      "firstnameusual": "Pascal",
+      "lastnameusual": "",
+      "email": "pascal.rolle@epfl.ch"
+    },
+    {
+      "persid": 350659,
+      "firstname": "Adrien",
+      "lastname": "Savoretti",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "adrien.savoretti@epfl.ch"
+    },
+    {
+      "persid": 382622,
+      "firstname": "Lionel",
+      "lastname": "Schopfer",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "lionel.schopfer@epfl.ch"
+    },
+    {
+      "persid": 331490,
+      "firstname": "Jérémy",
+      "lastname": "Wolff",
+      "firstnameusual": "",
+      "lastnameusual": "",
+      "email": "jeremy.wolff@epfl.ch"
+    }
+  ]
+}

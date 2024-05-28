@@ -1,0 +1,21 @@
+{
+    "count": 13,
+    "members": [
+        {
+            "persid": 321014,
+            "firstname": "Arnaud Jacques Ivrin",
+            "lastname": "Assad",
+            "firstnameusual": "Arnaud",
+            "lastnameusual": "",
+            "email": "arnaud.assad@epfl.ch"
+        },
+        {
+            "persid": 366852,
+            "firstname": "Marine Francine Pierrette",
+            "lastname": "Blanchard",
+            "firstnameusual": "Marine",
+            "lastnameusual": "",
+            "email": "marine.blanchard@epfl.ch"
+        }
+    ]
+}

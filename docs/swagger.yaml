@@ -1,0 +1,183 @@
+definitions:
+  api.ListsResponse:
+    properties:
+      count:
+        type: integer
+      trellode:
+        items:
+          $ref: '#/definitions/models.List'
+        type: array
+    type: object
+  api.MembersResponse:
+    properties:
+      count:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/models.Person'
+        type: array
+    type: object
+  models.List:
+    properties:
+      address:
+        type: string
+      id:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/models.Person'
+        type: array
+      memberscount:
+        type: integer
+      subtype:
+        type: string
+      type:
+        type: string
+      unit:
+        type: string
+      unitid:
+        type: integer
+      usualcode:
+        type: string
+    type: object
+  models.Person:
+    properties:
+      email:
+        type: string
+      firstname:
+        type: string
+      firstnameusual:
+        type: string
+      lastname:
+        type: string
+      lastnameusual:
+        type: string
+      persid:
+        type: integer
+    type: object
+host: api.epfl.ch
+info:
+  contact:
+    email: idev-md@groupes.epfl.ch
+    name: Contact ISCS-IAM
+  description: This is the Lists API
+  title: Lists API
+  version: "1.0"
+paths:
+  /v1/trellode:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: perso
+        in: query
+        name: query
+        type: string
+      - description: "14290"
+        in: query
+        name: unitid
+        type: string
+      - description: batiments
+        in: query
+        name: type
+        type: string
+      - description: batiment
+        in: query
+        name: subtype
+        type: string
+      - description: 0 by default
+        example: 0
+        in: query
+        name: pageindex
+        type: integer
+      - description: 100 by default
+        example: 10
+        in: query
+        name: pagesize
+        type: integer
+      - description: field to sort on (type, subtype, unit)
+        example: '"subtype"'
+        in: query
+        name: sortcolumn
+        type: string
+      - description: direction to sort
+        example: '"asc"'
+        in: query
+        name: sortdirection
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ListsResponse'
+      summary: Search trellode by label, unitid, type, subtype
+      tags:
+      - trellode
+  /v1/trellode/{id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: "105179"
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.List'
+      summary: Get list by ID or name
+      tags:
+      - trellode
+  /v1/trellode/{id}/members:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: "105179"
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 0 by default
+        example: 0
+        in: query
+        name: pageindex
+        type: integer
+      - description: 100 by default
+        example: 10
+        in: query
+        name: pagesize
+        type: integer
+      - description: field to sort on (name, type, subtype)
+        example: '"name"'
+        in: query
+        name: sortcolumn
+        type: string
+      - description: direction to sort
+        example: '"asc"'
+        in: query
+        name: sortdirection
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.MembersResponse'
+      summary: Get members of a list
+      tags:
+      - trellode
+security:
+- BasicAuth: []
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

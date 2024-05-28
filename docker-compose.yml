@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  trellode_db:
+    image: mariadb:10.4
+    container_name: trellode-db
+    environment:
+      - MARIADB_ROOT_PASSWORD=1234
+      - MARIADB_DATABASE=trellode
+      - MARIADB_USER=trellode
+      - MARIADB_PASSWORD=trellode
+    volumes:
+      - ./conf/docker/initdb:/docker-entrypoint-initdb.d
+      - ./conf/docker/mariadb.cnf:/etc/mysql/mariadb.cnf
+    ports:
+      - "23306:3306"
+    networks:
+      - default
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=1234
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  trellode_api:
+    image: trellode-api
+    build:
+      context: .
+      dockerfile: $DOCKERFILE
+    container_name: trellode-api
+    restart: always
+    ports:
+      - "8080:8080"
+    expose:
+      - 8080
+    volumes:
+      - ./env.sample:/home/trellode/conf/.env
+    networks:
+      - default
+    depends_on:
+      trellode_db:
+        condition: service_healthy

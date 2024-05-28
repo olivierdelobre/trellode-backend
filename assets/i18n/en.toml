@@ -1,0 +1,35 @@
+[NoMatchInLDAP]
+other = "You can't create an affiliation, you don't have an accred in EPFL, CL or CL-COURS"
+
+[HMACIsTempered]
+other = "HMAC is tempered"
+
+[OneTimeTokenExpired]
+other = "One time token has expired (> 60 mins), retry operation"
+
+[AffiliationExists]
+other = "Affiliation already exists for "
+
+[NotAuthorized]
+other = "Not authorized"
+
+[EduIdApiCallFailure]
+other = "Failed to call Switch EduId API"
+
+[EduIdApiResponseParsingFailure]
+other = "Failed parsing Switch EduId API response"
+
+[CannotMarshallAffiliation]
+other = "Cannot unmarshal affiliation"
+
+[CannotBuildRequest]
+other = "Cannot build request"
+
+[CannotSendRequest]
+other = "Cannot send request"
+
+[CannotReadResponse]
+other = "Cannot read response"
+
+[InvalidAffiliationData]
+other = "Affiliation data is invalid"
