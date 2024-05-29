@@ -41,7 +41,7 @@ func (s *server) getLiveness(c *gin.Context) {
 	errorLabel := ""
 
 	getListOK := true
-	_, _, err := s.boardService.GetBoards(models.Context{})
+	_, _, err := s.boardService.GetBoards(models.Context{}, false)
 	if err != nil {
 		errorLabel = "Failed to get boards: " + err.Error()
 		getListOK = false

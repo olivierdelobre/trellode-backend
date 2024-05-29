@@ -8,7 +8,7 @@ import (
 )
 
 type BoardServiceInterface interface {
-	GetBoards(models.Context) ([]*models.Board, int, error)
+	GetBoards(models.Context, bool) ([]*models.Board, int, error)
 	CreateBoard(models.Context, *models.Board) (uint, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
 	ArchiveBoard(models.Context, int) (int, error)
@@ -29,8 +29,8 @@ func (s BoardService) GetBoard(context models.Context, id int) (*models.Board, i
 	return s.repo.GetBoard(context, id)
 }
 
-func (s BoardService) GetBoards(context models.Context) ([]*models.Board, int, error) {
-	return s.repo.GetBoards(context)
+func (s BoardService) GetBoards(context models.Context, archived bool) ([]*models.Board, int, error) {
+	return s.repo.GetBoards(context, archived)
 }
 
 func (s BoardService) CreateBoard(context models.Context, board *models.Board) (int, int, error) {
@@ -39,14 +39,14 @@ func (s BoardService) CreateBoard(context models.Context, board *models.Board) (
 
 func (s BoardService) UpdateBoard(context models.Context, id int, board *models.Board) (int, error) {
 	// check board exists
-	board, severity, err := s.GetBoard(context, id)
+	existingBoard, severity, err := s.GetBoard(context, id)
 	if err != nil {
 		return severity, err
 	}
-	if board.ID == 0 {
+	if existingBoard.ID == 0 {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
 	}
-	if board.UserID != context.UserId {
+	if existingBoard.UserID != context.UserId {
 		return http.StatusForbidden, errors.New(messages.GetMessage(context.Lang, "Forbidden"))
 	}
 

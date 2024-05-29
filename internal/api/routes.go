@@ -32,6 +32,11 @@ func (s *server) Routes() {
 	v1.PUT("/comments/:id", s.updateComment)
 	v1.DELETE("/comments/:id", s.deleteComment)
 
+	v1.GET("/backgrounds/:id", s.getBackground)
+	v1.GET("/backgrounds", s.getBackgrounds)
+	v1.POST("/backgrounds", s.createBackground)
+	v1.DELETE("/backgrounds/:id", s.deleteBackground)
+
 	v1.OPTIONS("/users/register", s.options)
 	v1.OPTIONS("/users/authenticate", s.options)
 	v1.OPTIONS("/boards", s.options)
@@ -45,6 +50,8 @@ func (s *server) Routes() {
 	v1.OPTIONS("/cards/:id/comments", s.options)
 	v1.OPTIONS("/comments", s.options)
 	v1.OPTIONS("/comments/:id", s.options)
+	v1.OPTIONS("/backgrounds", s.options)
+	v1.OPTIONS("/backgrounds/:id", s.options)
 
 	//v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }

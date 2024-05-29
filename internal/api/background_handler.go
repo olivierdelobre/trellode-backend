@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *server) getBoard(c *gin.Context) {
+func (s *server) getBackground(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -25,16 +25,16 @@ func (s *server) getBoard(c *gin.Context) {
 		return
 	}
 
-	board, severity, err := s.boardService.GetBoard(context, id)
+	background, severity, err := s.backgroundService.GetBackground(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, board)
+	c.JSON(http.StatusOK, background)
 }
 
-func (s *server) getBoards(c *gin.Context) {
+func (s *server) getBackgrounds(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -42,22 +42,48 @@ func (s *server) getBoards(c *gin.Context) {
 		return
 	}
 
-	archivedValue := c.Query("archived")
-	archived := false
-	if archivedValue == "1" {
-		archived = true
-	}
-
-	boards, severity, err := s.boardService.GetBoards(context, archived)
+	backgrounds, severity, err := s.backgroundService.GetBackgrounds(context)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, boards)
+	c.JSON(http.StatusOK, backgrounds)
 }
 
-func (s *server) createBoard(c *gin.Context) {
+/*
+	func (s *server) createBackground(c *gin.Context) {
+		context, err := getContext(c)
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+			return
+		}
+
+		file, header, err := c.Request.FormFile("file")
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+			return
+		}
+		log.Println(header.Filename)
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, file); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
+			return
+		}
+
+		id, severity, err := s.backgroundService.CreateBackground(context, buf.Bytes())
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(severity, gin.H{"detail": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"id": id})
+	}
+*/
+func (s *server) createBackground(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -65,53 +91,21 @@ func (s *server) createBoard(c *gin.Context) {
 		return
 	}
 
-	var board models.Board
-	if err := c.BindJSON(&board); err == nil {
-		board, severity, err := s.boardService.CreateBoard(context, &board)
+	var background models.Background
+	if err := c.BindJSON(&background); err == nil {
+		id, severity, err := s.backgroundService.CreateBackground(context, background.Data)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
 			c.JSON(severity, gin.H{"detail": err.Error()})
 			return
 		}
-		c.JSON(severity, board)
+		c.JSON(http.StatusCreated, gin.H{"id": id})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 }
 
-func (s *server) updateBoard(c *gin.Context) {
-	context, err := getContext(c)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
-
-	var board models.Board
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
-	if err := c.BindJSON(&board); err == nil {
-		if id != board.ID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
-		}
-		severity, err := s.boardService.UpdateBoard(context, id, &board)
-		if err != nil {
-			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
-			return
-		}
-		c.JSON(severity, board)
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	}
-}
-
-func (s *server) archiveBoard(c *gin.Context) {
+func (s *server) deleteBackground(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -127,7 +121,7 @@ func (s *server) archiveBoard(c *gin.Context) {
 		return
 	}
 
-	severity, err := s.boardService.ArchiveBoard(context, id)
+	severity, err := s.backgroundService.DeleteBackground(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})

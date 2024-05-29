@@ -3,10 +3,10 @@ USE trellode;
 INSERT INTO users (email, password_hash) VALUES 
 ('user@example.com', 'hashed_password');
 
-INSERT INTO boards (user_id, title, background_image) VALUES 
-(1, 'Project Alpha', 'alpha.jpg'),
-(1, 'Project Beta', 'beta.jpg'),
-(1, 'Project Gamma', 'gamma.jpg');
+INSERT INTO boards (user_id, title) VALUES 
+(1, 'Project Alpha'),
+(1, 'Project Beta'),
+(1, 'Project Gamma');
 
 INSERT INTO lists (board_id, title, position) VALUES 
 (1, 'To Do', 1),
