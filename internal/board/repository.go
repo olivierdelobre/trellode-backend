@@ -106,8 +106,9 @@ func (repo BoardRepository) GetBoards(context models.Context, archived bool) ([]
 func (repo BoardRepository) CreateBoard(context models.Context, board *models.Board) (int, int, error) {
 	// override userId
 	board.UserID = context.UserId
+	board.ArchivedAt = nil
 
-	err := repo.db.Create(&board).Error
+	err := repo.db.Omit("BackgroundID", "Background", "Lists").Create(&board).Error
 	if err != nil {
 		return 0, http.StatusInternalServerError, err
 	}
@@ -119,10 +120,10 @@ func (repo BoardRepository) UpdateBoard(context models.Context, board *models.Bo
 	board.UpdatedAt = time.Now()
 	// if board.ArchivedAt equals epoch 0, nullify archivedAt
 	epoch0 := time.Unix(0, 0)
-	if board.ArchivedAt.Format("2006-01-02") == epoch0.Format("2006-01-02") {
+	if board.ArchivedAt != nil && board.ArchivedAt.Format("2006-01-02") == epoch0.Format("2006-01-02") {
 		board.ArchivedAt = nil
 	}
-	err := repo.db.Omit("UserID", "BackgroundID", "Background", "Lists", "CreatedAt").Save(&board).Error
+	err := repo.db.Omit("UserID", "Background", "Lists", "CreatedAt").Save(&board).Error
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
