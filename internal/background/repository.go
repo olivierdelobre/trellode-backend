@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/jpeg"
+	"image/png"
 	"net/http"
 	"strings"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/nfnt/resize"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -104,6 +105,7 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 	// remove header
 	// find index of "base64,"
 	index := strings.Index(background.Data, "base64,")
+	header := background.Data[:index+7]
 	dataNoHeader := background.Data[index+7:]
 
 	decoded, err := base64.StdEncoding.DecodeString(dataNoHeader)
@@ -116,10 +118,30 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 	if err != nil {
 		return 0, http.StatusInternalServerError, err
 	}
-	averageColor := averageColor(img)
+
+	// resize
+	newWidth := 1920
+	newHeight := 0 // Set to 0 to preserve aspect ratio
+	resizedImg := resize.Resize(uint(newWidth), uint(newHeight), img, resize.Lanczos3)
+
+	averageColor := averageColor(resizedImg)
 	r, g, b, _ := averageColor.RGBA()
 	colorCss := fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 	background.Color = colorCss
+
+	// reencode to base64
+	var buf bytes.Buffer
+	if strings.Contains(header, "jpeg") {
+		err = jpeg.Encode(&buf, resizedImg, nil)
+	}
+	if strings.Contains(header, "png") {
+		err = png.Encode(&buf, resizedImg)
+	}
+	if err != nil {
+		return 0, http.StatusInternalServerError, err
+	}
+	base64Str := base64.StdEncoding.EncodeToString(buf.Bytes())
+	background.Data = header + base64Str
 
 	err = repo.db.Create(&background).Error
 	if err != nil {
