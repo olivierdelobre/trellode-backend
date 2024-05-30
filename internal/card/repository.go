@@ -51,11 +51,24 @@ func (repo CardRepository) GetCard(context models.Context, id int) (*models.Card
 }
 
 func (repo CardRepository) CreateCard(context models.Context, card *models.Card) (int, int, error) {
+	// get cards of list to determine position of new card
+	var list *models.List
+	err := repo.db.
+		Where("id = ?", card.ListID).
+		First(&list).Error
+	if err != nil {
+		return 0, http.StatusInternalServerError, err
+	}
+	if list.ID == 0 {
+		return 0, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
+
 	card.ArchivedAt = nil
+	card.Position = len(list.Cards) + 1
 
 	tx := repo.db.Begin()
 
-	err := tx.Create(&card).Error
+	err = tx.Create(&card).Error
 	if err != nil {
 		tx.Rollback()
 		return 0, http.StatusInternalServerError, err

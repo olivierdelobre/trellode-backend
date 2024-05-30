@@ -44,7 +44,9 @@ func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Bo
 	err := repo.db.
 		Preload("Background").
 		Preload("Lists", repo.db.Where("archived_at IS NULL")).
-		Preload("Lists.Cards", repo.db.Where("archived_at IS NULL")).
+		Preload("Lists.Cards", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("position ASC")
+		}).
 		Preload("Lists.Cards.Comments", func(db *gorm.DB) *gorm.DB {
 			return db.Order("comments.created_at DESC")
 		}).

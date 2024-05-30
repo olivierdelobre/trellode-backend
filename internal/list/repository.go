@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"trellode-go/internal/log"
 	"trellode-go/internal/models"
@@ -24,6 +25,7 @@ type ListRepositoryInterface interface {
 	GetList(models.Context, int) (*models.List, int, error)
 	CreateList(models.Context, *models.List) (int, int, error)
 	UpdateList(models.Context, *models.List) (int, error)
+	UpdateCardsOrder(models.Context, int, string) (int, error)
 	DeleteList(models.Context, int) (int, error)
 }
 
@@ -38,8 +40,8 @@ func NewListRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) 
 func (repo ListRepository) GetList(context models.Context, id int) (*models.List, int, error) {
 	var list *models.List
 	err := repo.db.
-		Preload("Cards").
-		Preload("Cards.Comments").
+		Preload("Cards", repo.db.Order("Cards.position ASC")).
+		Preload("Cards.Comments", repo.db.Order("Cards.Comments.CreatedAt DESC")).
 		Where("id = ?", id).
 		First(&list).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -84,7 +86,7 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 		return severity, err
 	}
 	if listBefore.ID == 0 {
-		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListdNotFound"))
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
 	// what changed?
@@ -125,6 +127,55 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 		tx.Rollback()
 		return severity, err
 	}
+
+	return http.StatusAccepted, nil
+}
+
+func (repo ListRepository) UpdateCardsOrder(context models.Context, listId int, idsOrdered string) (int, error) {
+	// get list from db
+	list, severity, err := repo.GetList(context, listId)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return severity, err
+	}
+	if list.ID == 0 {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
+
+	tx := repo.db.Begin()
+
+	idsOrderedSplit := strings.Split(idsOrdered, ",")
+
+	for i, id := range idsOrderedSplit {
+		var card *models.Card
+		err := tx.Where("id = ?", id).First(&card).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+		if card.ID == 0 {
+			return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CardNotFound"))
+		}
+		card.Position = i + 1
+		err = tx.Save(&card).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	// log operation
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        list.BoardID,
+		Action:         "reordercards",
+		ActionTargetID: list.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
 
 	return http.StatusAccepted, nil
 }

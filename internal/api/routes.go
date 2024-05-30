@@ -20,6 +20,7 @@ func (s *server) Routes() {
 	v1.POST("/lists", s.createList)
 	v1.PUT("/lists/:id", s.updateList)
 	v1.DELETE("/lists/:id", s.deleteList)
+	v1.PUT("/lists/:id/order/:idsordered", s.updateCardsOrder)
 
 	v1.GET("/cards/:id", s.getCard)
 	v1.POST("/cards", s.createCard)
@@ -55,6 +56,7 @@ func (s *server) Routes() {
 	v1.OPTIONS("/backgrounds", s.options)
 	v1.OPTIONS("/backgrounds/:id", s.options)
 	v1.OPTIONS("/logs", s.options)
+	v1.OPTIONS("/lists/:id/order/:idsordered", s.options)
 
 	//v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }

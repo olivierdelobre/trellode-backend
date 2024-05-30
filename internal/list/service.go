@@ -6,6 +6,7 @@ type ListServiceInterface interface {
 	GetList(models.Context, int) (*models.List, int, error)
 	CreateList(models.Context, *models.List) (int, int, error)
 	UpdateList(models.Context, *models.List) (int, error)
+	UpdateCardsOrder(models.Context, int, string) (int, error)
 	DeleteList(models.Context, int) (int, error)
 }
 
@@ -30,6 +31,10 @@ func (p ListService) CreateList(context models.Context, board *models.List) (int
 
 func (p ListService) UpdateList(context models.Context, board *models.List) (int, error) {
 	return p.repo.UpdateList(context, board)
+}
+
+func (p ListService) UpdateCardsOrder(context models.Context, listId int, idsOrdered string) (int, error) {
+	return p.repo.UpdateCardsOrder(context, listId, idsOrdered)
 }
 
 func (p ListService) DeleteList(context models.Context, id int) (int, error) {

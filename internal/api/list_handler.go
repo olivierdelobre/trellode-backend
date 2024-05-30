@@ -82,6 +82,33 @@ func (s *server) updateList(c *gin.Context) {
 	}
 }
 
+func (s *server) updateCardsOrder(c *gin.Context) {
+	context, err := getContext(c)
+	if err != nil {
+		logging.LogError(s.Log, c, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
+
+	idValue := c.Param("id")
+	id, err := strconv.Atoi(idValue)
+	if err != nil {
+		logging.LogError(s.Log, c, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
+	idsOrdered := c.Param("idsordered")
+
+	severity, err := s.listService.UpdateCardsOrder(context, id, idsOrdered)
+	if err != nil {
+		logging.LogError(s.Log, c, err.Error())
+		c.JSON(severity, gin.H{"detail": err.Error()})
+		return
+	}
+	c.JSON(severity, nil)
+
+}
+
 func (s *server) deleteList(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
