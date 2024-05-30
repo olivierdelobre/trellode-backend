@@ -6,7 +6,7 @@ type ListServiceInterface interface {
 	GetList(models.Context, int) (*models.List, int, error)
 	CreateList(models.Context, *models.List) (int, int, error)
 	UpdateList(models.Context, *models.List) (int, error)
-	ArchiveList(models.Context, int) (int, error)
+	DeleteList(models.Context, int) (int, error)
 }
 
 type ListService struct {
@@ -32,6 +32,6 @@ func (p ListService) UpdateList(context models.Context, board *models.List) (int
 	return p.repo.UpdateList(context, board)
 }
 
-func (p ListService) ArchiveList(context models.Context, id int) (int, error) {
-	return p.repo.ArchiveList(context, id)
+func (p ListService) DeleteList(context models.Context, id int) (int, error) {
+	return p.repo.DeleteList(context, id)
 }

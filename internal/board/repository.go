@@ -1,6 +1,7 @@
 package board
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/color"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"trellode-go/internal/log"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
@@ -16,8 +18,9 @@ import (
 )
 
 type BoardRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
+	db         *gorm.DB
+	log        *zap.Logger
+	logService log.LogService
 }
 
 type BoardRepositoryInterface interface {
@@ -25,13 +28,14 @@ type BoardRepositoryInterface interface {
 	GetBoards(models.Context, bool) ([]*models.Board, int, error)
 	CreateBoard(models.Context, *models.Board) (int, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
-	ArchiveBoard(models.Context, int) (int, error)
+	DeleteBoard(models.Context, int) (int, error)
 }
 
-func NewBoardRepository(db *gorm.DB, log *zap.Logger) BoardRepository {
+func NewBoardRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) BoardRepository {
 	return BoardRepository{
-		db:  db,
-		log: log,
+		db:         db,
+		log:        log,
+		logService: logService,
 	}
 }
 
@@ -46,7 +50,7 @@ func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Bo
 		}).
 		Where("id = ?", id).
 		First(&board).Error
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, err
 	}
 
@@ -108,30 +112,91 @@ func (repo BoardRepository) CreateBoard(context models.Context, board *models.Bo
 	board.UserID = context.UserId
 	board.ArchivedAt = nil
 
-	err := repo.db.Omit("BackgroundID", "Background", "Lists").Create(&board).Error
+	tx := repo.db.Begin()
+
+	err := tx.Omit("BackgroundID", "Background", "Lists").Create(&board).Error
 	if err != nil {
 		return 0, http.StatusInternalServerError, err
 	}
+
+	// log operation
+	_, severity, err := repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        board.ID,
+		Action:         "createboard",
+		ActionTargetID: board.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, severity, err
+	}
+
+	tx.Commit()
 
 	return board.ID, http.StatusCreated, nil
 }
 
 func (repo BoardRepository) UpdateBoard(context models.Context, board *models.Board) (int, error) {
+	// get board from db
+	boardBefore, severity, err := repo.GetBoard(context, board.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return severity, err
+	}
+	if boardBefore.ID == 0 {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoarddNotFound"))
+	}
+
 	board.UpdatedAt = time.Now()
 	// if board.ArchivedAt equals epoch 0, nullify archivedAt
 	epoch0 := time.Unix(0, 0)
 	if board.ArchivedAt != nil && board.ArchivedAt.Format("2006-01-02") == epoch0.Format("2006-01-02") {
 		board.ArchivedAt = nil
 	}
-	err := repo.db.Omit("UserID", "Background", "Lists", "CreatedAt").Save(&board).Error
+
+	// what changed?
+	changes, err := whatChanged(boardBefore, board)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	// marshal changes to JSON string
+	changesJson, err := json.Marshal(changes)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
 
+	tx := repo.db.Begin()
+
+	err = tx.Omit("UserID", "Background", "Lists", "CreatedAt").Save(&board).Error
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	// log operation
+	operation := "updateboard"
+	if boardBefore.ArchivedAt == nil && board.ArchivedAt != nil {
+		operation = "archiveboard"
+	}
+	if boardBefore.ArchivedAt != nil && board.ArchivedAt == nil {
+		operation = "restoreboard"
+	}
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        board.ID,
+		Action:         operation,
+		ActionTargetID: board.ID,
+		Changes:        string(changesJson),
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
+
 	return http.StatusAccepted, nil
 }
 
-func (repo BoardRepository) ArchiveBoard(context models.Context, id int) (int, error) {
+func (repo BoardRepository) DeleteBoard(context models.Context, id int) (int, error) {
 	board, severity, err := repo.GetBoard(context, id)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
@@ -142,37 +207,56 @@ func (repo BoardRepository) ArchiveBoard(context models.Context, id int) (int, e
 
 	tx := repo.db.Begin()
 
-	now := time.Now()
-	// set archivedAt to current time
-	board.ArchivedAt = &now
-	err = tx.Omit("UserID", "BackgroundID", "Background", "Lists", "CreatedAt", "UpdatedAt").Save(&board).Error
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	/*
-		lists := board.Lists
-		for _, list := range lists {
-			// set archivedAt to current time
-			list.ArchivedAt = &now
-			err = tx.Save(&list).Error
-			if err != nil {
-				tx.Rollback()
-				return http.StatusInternalServerError, err
-			}
-
-			cards := list.Cards
-			for _, card := range cards {
-				// set archivedAt to current time
-				card.ArchivedAt = &now
-				err = tx.Save(&card).Error
+	// remove comments
+	lists := board.Lists
+	for _, list := range lists {
+		cards := list.Cards
+		for _, card := range cards {
+			for _, comment := range card.Comments {
+				err = tx.Delete(&comment).Error
 				if err != nil {
 					tx.Rollback()
 					return http.StatusInternalServerError, err
 				}
 			}
 		}
-	*/
+	}
+	// remove cards
+	for _, list := range lists {
+		cards := list.Cards
+		for _, card := range cards {
+			err = tx.Delete(&card).Error
+			if err != nil {
+				tx.Rollback()
+				return http.StatusInternalServerError, err
+			}
+		}
+	}
+	// remove lists
+	for _, list := range lists {
+		err = tx.Delete(&list).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+	// remove board
+	err = tx.Delete(&board).Error
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	// log operation
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        board.ID,
+		Action:         "deleteboard",
+		ActionTargetID: board.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
 
 	tx.Commit()
 
@@ -255,7 +339,41 @@ func parseHexByte(s string) (uint8, error) {
 	return uint8(v), nil
 }
 
+// colorToCSS converts a color.Color to a CSS color string.
+//
+// It takes a color.Color as a parameter and returns a string representing the CSS color value.
 func colorToCSS(c color.Color) string {
 	r, g, b, _ := c.RGBA()
 	return fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+}
+
+// whatChanged compares two Board models and returns a slice of LogChange models
+// indicating the changes made between the two. It returns an error if any.
+//
+// Parameters:
+// - boardBefore: a pointer to the previous Board model
+// - boardAfter: a pointer to the updated Board model
+//
+// Returns:
+// - changes: a slice of LogChange models indicating the changes made
+// - error: an error if any occurred during the comparison
+func whatChanged(boardBefore *models.Board, boardAfter *models.Board) ([]*models.LogChange, error) {
+	changes := []*models.LogChange{}
+
+	if boardBefore.Title != boardAfter.Title {
+		changes = append(changes, &models.LogChange{
+			Field:     "title",
+			FromValue: boardBefore.Title,
+			ToValue:   boardAfter.Title,
+		})
+	}
+	if boardBefore.BackgroundID != boardAfter.BackgroundID {
+		changes = append(changes, &models.LogChange{
+			Field:     "backgroundid",
+			FromValue: strconv.Itoa(boardBefore.BackgroundID),
+			ToValue:   strconv.Itoa(boardAfter.BackgroundID),
+		})
+	}
+
+	return changes, nil
 }

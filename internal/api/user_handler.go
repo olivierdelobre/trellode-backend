@@ -6,6 +6,7 @@ import (
 	"trellode-go/internal/card"
 	"trellode-go/internal/comment"
 	"trellode-go/internal/list"
+	internalLog "trellode-go/internal/log"
 	"trellode-go/internal/models"
 	"trellode-go/internal/user"
 	"trellode-go/internal/utils/config"
@@ -32,15 +33,17 @@ type server struct {
 	cardService       card.CardService
 	commentService    comment.CommentService
 	backgroundService background.BackgroundService
+	logService        internalLog.LogService
 }
 
 func NewServer(db *gorm.DB, router *gin.Engine, log *zap.Logger) *server {
+	logService := internalLog.NewLogService(internalLog.NewLogRepository(db, log))
 	userService := user.NewUserService(user.NewUserRepository(db, log))
-	boardService := board.NewBoardService(board.NewBoardRepository(db, log))
-	listService := list.NewListService(list.NewListRepository(db, log))
-	cardService := card.NewCardService(card.NewCardRepository(db, log))
-	commentService := comment.NewCommentService(comment.NewCommentRepository(db, log))
-	backgroundService := background.NewBackgroundService(background.NewBackgroundRepository(db, log))
+	boardService := board.NewBoardService(board.NewBoardRepository(db, log, logService))
+	listService := list.NewListService(list.NewListRepository(db, log, logService))
+	cardService := card.NewCardService(card.NewCardRepository(db, log, logService))
+	commentService := comment.NewCommentService(comment.NewCommentRepository(db, log, logService))
+	backgroundService := background.NewBackgroundService(background.NewBackgroundRepository(db, log, logService))
 
 	// i18n for error messages
 	bundle := i18n.NewBundle(language.French)
@@ -62,7 +65,7 @@ func NewServer(db *gorm.DB, router *gin.Engine, log *zap.Logger) *server {
 		}
 	}
 
-	return &server{db, bundle, router, log, userService, boardService, listService, cardService, commentService, backgroundService}
+	return &server{db, bundle, router, log, userService, boardService, listService, cardService, commentService, backgroundService, logService}
 }
 
 // RegisterUser 	godoc

@@ -1,7 +1,7 @@
 USE trellode;
 
-INSERT INTO users (email, password_hash) VALUES 
-('user@example.com', 'hashed_password');
+INSERT INTO users (email, firstname, lastname, password_hash) VALUES 
+('user@example.com', 'Olivier', 'Delobre', 'hashed_password');
 
 INSERT INTO boards (user_id, title) VALUES 
 (1, 'Project Alpha'),

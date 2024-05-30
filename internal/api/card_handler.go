@@ -82,7 +82,7 @@ func (s *server) updateCard(c *gin.Context) {
 	}
 }
 
-func (s *server) archiveCard(c *gin.Context) {
+func (s *server) deleteCard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -98,7 +98,7 @@ func (s *server) archiveCard(c *gin.Context) {
 		return
 	}
 
-	severity, err := s.cardService.ArchiveCard(context, id)
+	severity, err := s.cardService.DeleteCard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})

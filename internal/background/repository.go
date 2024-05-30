@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"net/http"
 	"strings"
+	"trellode-go/internal/log"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
@@ -20,8 +21,9 @@ import (
 )
 
 type BackgroundRepository struct {
-	db  *gorm.DB
-	log *zap.Logger
+	db         *gorm.DB
+	log        *zap.Logger
+	logService log.LogService
 }
 
 type BackgroundRepositoryInterface interface {
@@ -32,10 +34,11 @@ type BackgroundRepositoryInterface interface {
 	DeleteBackground(models.Context, int) (int, error)
 }
 
-func NewBackgroundRepository(db *gorm.DB, log *zap.Logger) BackgroundRepository {
+func NewBackgroundRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) BackgroundRepository {
 	return BackgroundRepository{
-		db:  db,
-		log: log,
+		db:         db,
+		log:        log,
+		logService: logService,
 	}
 }
 
@@ -143,10 +146,26 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 	base64Str := base64.StdEncoding.EncodeToString(buf.Bytes())
 	background.Data = header + base64Str
 
-	err = repo.db.Create(&background).Error
+	tx := repo.db.Begin()
+
+	err = tx.Create(&background).Error
 	if err != nil {
 		return 0, http.StatusInternalServerError, err
 	}
+
+	// log operation
+	_, severity, err := repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        0, // not related to a specific board
+		Action:         "createbackground",
+		ActionTargetID: background.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return 0, severity, err
+	}
+
+	tx.Commit()
 
 	return background.ID, http.StatusCreated, nil
 }
@@ -166,11 +185,27 @@ func (repo BackgroundRepository) DeleteBackground(context models.Context, id int
 		return http.StatusForbidden, errors.New(messages.GetMessage(context.Lang, "BackgroundUsedInBoard"))
 	}
 
+	tx := repo.db.Begin()
+
 	// delete background
-	err = repo.db.Where("id = ?", id).Delete(&models.Background{}).Error
+	err = tx.Where("id = ?", id).Delete(&models.Background{}).Error
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
+
+	// log operation
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        0, // not related to a specific board
+		Action:         "deletebackground",
+		ActionTargetID: background.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
 
 	return http.StatusAccepted, nil
 }

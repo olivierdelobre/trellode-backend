@@ -6,7 +6,7 @@ type CardServiceInterface interface {
 	GetCard(models.Context, int) (*models.Card, int, error)
 	CreateCard(models.Context, *models.Card) (int, int, error)
 	UpdateCard(models.Context, *models.Card) (int, error)
-	ArchiveCard(models.Context, int) (int, error)
+	DeleteCard(models.Context, int) (int, error)
 }
 
 type CardService struct {
@@ -32,6 +32,6 @@ func (p CardService) UpdateCard(context models.Context, board *models.Card) (int
 	return p.repo.UpdateCard(context, board)
 }
 
-func (p CardService) ArchiveCard(context models.Context, id int) (int, error) {
-	return p.repo.ArchiveCard(context, id)
+func (p CardService) DeleteCard(context models.Context, id int) (int, error) {
+	return p.repo.DeleteCard(context, id)
 }

@@ -14,17 +14,17 @@ func (s *server) Routes() {
 	v1.GET("/boards", s.getBoards)
 	v1.POST("/boards", s.createBoard)
 	v1.PUT("/boards/:id", s.updateBoard)
-	v1.DELETE("/boards/:id", s.archiveBoard)
+	v1.DELETE("/boards/:id", s.deleteBoard)
 
 	v1.GET("/lists/:id", s.getList)
 	v1.POST("/lists", s.createList)
 	v1.PUT("/lists/:id", s.updateList)
-	v1.DELETE("/lists/:id", s.archiveList)
+	v1.DELETE("/lists/:id", s.deleteList)
 
 	v1.GET("/cards/:id", s.getCard)
 	v1.POST("/cards", s.createCard)
 	v1.PUT("/cards/:id", s.updateCard)
-	v1.DELETE("/cards/:id", s.archiveCard)
+	v1.DELETE("/cards/:id", s.deleteCard)
 
 	v1.GET("/comments/:id", s.getComment)
 	v1.GET("/cards/:id/comments", s.getComments)
@@ -36,6 +36,8 @@ func (s *server) Routes() {
 	v1.GET("/backgrounds", s.getBackgrounds)
 	v1.POST("/backgrounds", s.createBackground)
 	v1.DELETE("/backgrounds/:id", s.deleteBackground)
+
+	v1.GET("/logs", s.getLogs)
 
 	v1.OPTIONS("/users/register", s.options)
 	v1.OPTIONS("/users/authenticate", s.options)
@@ -52,6 +54,7 @@ func (s *server) Routes() {
 	v1.OPTIONS("/comments/:id", s.options)
 	v1.OPTIONS("/backgrounds", s.options)
 	v1.OPTIONS("/backgrounds/:id", s.options)
+	v1.OPTIONS("/logs", s.options)
 
 	//v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }

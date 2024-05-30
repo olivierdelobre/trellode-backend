@@ -111,7 +111,7 @@ func (s *server) updateBoard(c *gin.Context) {
 	}
 }
 
-func (s *server) archiveBoard(c *gin.Context) {
+func (s *server) deleteBoard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -127,7 +127,7 @@ func (s *server) archiveBoard(c *gin.Context) {
 		return
 	}
 
-	severity, err := s.boardService.ArchiveBoard(context, id)
+	severity, err := s.boardService.DeleteBoard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})

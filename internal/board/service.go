@@ -11,7 +11,7 @@ type BoardServiceInterface interface {
 	GetBoards(models.Context, bool) ([]*models.Board, int, error)
 	CreateBoard(models.Context, *models.Board) (uint, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
-	ArchiveBoard(models.Context, int) (int, error)
+	DeleteBoard(models.Context, int) (int, error)
 }
 
 type BoardService struct {
@@ -53,7 +53,7 @@ func (s BoardService) UpdateBoard(context models.Context, id int, board *models.
 	return s.repo.UpdateBoard(context, board)
 }
 
-func (s BoardService) ArchiveBoard(context models.Context, id int) (int, error) {
+func (s BoardService) DeleteBoard(context models.Context, id int) (int, error) {
 	// check board exists
 	board, severity, err := s.GetBoard(context, id)
 	if err != nil {
@@ -66,5 +66,5 @@ func (s BoardService) ArchiveBoard(context models.Context, id int) (int, error) 
 		return http.StatusForbidden, errors.New(messages.GetMessage(context.Lang, "Forbidden"))
 	}
 
-	return s.repo.ArchiveBoard(context, id)
+	return s.repo.DeleteBoard(context, id)
 }

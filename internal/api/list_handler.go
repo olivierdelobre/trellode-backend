@@ -82,7 +82,7 @@ func (s *server) updateList(c *gin.Context) {
 	}
 }
 
-func (s *server) archiveList(c *gin.Context) {
+func (s *server) deleteList(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
@@ -98,7 +98,7 @@ func (s *server) archiveList(c *gin.Context) {
 		return
 	}
 
-	severity, err := s.listService.ArchiveList(context, id)
+	severity, err := s.listService.DeleteList(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
 		c.JSON(severity, gin.H{"detail": err.Error()})
