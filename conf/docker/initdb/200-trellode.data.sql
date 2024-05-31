@@ -1,27 +1,27 @@
 USE trellode;
 
-INSERT INTO users (email, firstname, lastname, password_hash) VALUES 
-('user@example.com', 'Olivier', 'Delobre', 'hashed_password');
+INSERT INTO users (id, email, firstname, lastname, password_hash) VALUES 
+('00000000-0000-0000-0000-000000000000', 'user@example.com', 'Olivier', 'Delobre', 'hashed_password');
 
-INSERT INTO boards (user_id, title) VALUES 
-(1, 'Project Alpha'),
-(1, 'Project Beta'),
-(1, 'Project Gamma');
+INSERT INTO boards (id, user_id, title) VALUES 
+('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'Project Alpha'),
+('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'Project Beta'),
+('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'Project Gamma');
 
-INSERT INTO lists (board_id, title, position) VALUES 
-(1, 'To Do', 1),
-(1, 'In Progress', 2),
-(1, 'Done', 3),
-(2, 'Backlog', 1),
-(2, 'Sprint', 2),
-(3, 'Ideas', 1);
+INSERT INTO lists (id, board_id, title, position) VALUES 
+('00000000-0000-0000-0000-000000000010','00000000-0000-0000-0000-000000000001', 'To Do', 1),
+('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000001', 'In Progress', 2),
+('00000000-0000-0000-0000-000000000030','00000000-0000-0000-0000-000000000001', 'Done', 3),
+('00000000-0000-0000-0000-000000000040','00000000-0000-0000-0000-000000000002', 'Backlog', 1),
+('00000000-0000-0000-0000-000000000050','00000000-0000-0000-0000-000000000002', 'Sprint', 2),
+('00000000-0000-0000-0000-000000000060','00000000-0000-0000-0000-000000000003', 'Ideas', 1);
 
-INSERT INTO cards (list_id, title, description, position) VALUES 
-(1, 'Task 1', 'Description for task 1', 1),
-(1, 'Task 2', 'Description for task 2', 2),
-(2, 'Task 3', 'Description for task 3', 1),
-(3, 'Task 4', 'Description for task 4', 1);
+INSERT INTO cards (id, list_id, title, description, position) VALUES 
+('00000000-0000-0000-0000-000000000100', '00000000-0000-0000-0000-000000000010', 'Task 1', 'Description for task 1', 1),
+('00000000-0000-0000-0000-000000000200', '00000000-0000-0000-0000-000000000010', 'Task 2', 'Description for task 2', 2),
+('00000000-0000-0000-0000-000000000300', '00000000-0000-0000-0000-000000000020', 'Task 3', 'Description for task 3', 1),
+('00000000-0000-0000-0000-000000000400', '00000000-0000-0000-0000-000000000030', 'Task 4', 'Description for task 4', 1);
 
-INSERT INTO comments (card_id, user_id, content) VALUES 
-(1, 1, 'This is a comment on Task 1'),
-(2, 1, 'This is a comment on Task 2');
+INSERT INTO comments (id, card_id, user_id, content) VALUES 
+('00000000-0000-0000-0000-000000001000', '00000000-0000-0000-0000-000000000100', '00000000-0000-0000-0000-000000000000', 'This is a comment on Task 1'),
+('00000000-0000-0000-0000-000000002000', '00000000-0000-0000-0000-000000000200', '00000000-0000-0000-0000-000000000000', 'This is a comment on Task 2');

@@ -20,7 +20,8 @@ func (s *server) Routes() {
 	v1.POST("/lists", s.createList)
 	v1.PUT("/lists/:id", s.updateList)
 	v1.DELETE("/lists/:id", s.deleteList)
-	v1.PUT("/lists/:id/order/:idsordered", s.updateCardsOrder)
+	//v1.PUT("/lists/:id/order/:idsordered", s.updateCardsOrder)
+	v1.PUT("/lists/:id/order", s.updateCardsOrder)
 
 	v1.GET("/cards/:id", s.getCard)
 	v1.POST("/cards", s.createCard)
@@ -37,6 +38,15 @@ func (s *server) Routes() {
 	v1.GET("/backgrounds", s.getBackgrounds)
 	v1.POST("/backgrounds", s.createBackground)
 	v1.DELETE("/backgrounds/:id", s.deleteBackground)
+
+	v1.GET("/checklists/:id", s.getChecklist)
+	v1.POST("/checklists", s.createChecklist)
+	v1.PUT("/checklists/:id", s.updateChecklist)
+	v1.DELETE("/checklists/:id", s.deleteChecklist)
+	v1.GET("/checklistitems/:id", s.getChecklistItem)
+	v1.POST("/checklistitems", s.createChecklistItem)
+	v1.PUT("/checklistitems/:id", s.updateChecklistItem)
+	v1.DELETE("/checklistitems/:id", s.deleteChecklistItem)
 
 	v1.GET("/logs", s.getLogs)
 
@@ -56,7 +66,11 @@ func (s *server) Routes() {
 	v1.OPTIONS("/backgrounds", s.options)
 	v1.OPTIONS("/backgrounds/:id", s.options)
 	v1.OPTIONS("/logs", s.options)
-	v1.OPTIONS("/lists/:id/order/:idsordered", s.options)
+	v1.OPTIONS("/lists/:id/order", s.options)
+	v1.OPTIONS("/checklists", s.options)
+	v1.OPTIONS("/checklists/:id", s.options)
+	v1.OPTIONS("/checklistitems", s.options)
+	v1.OPTIONS("/checklistitems/:id", s.options)
 
 	//v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }

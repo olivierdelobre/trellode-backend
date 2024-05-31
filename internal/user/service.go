@@ -15,7 +15,7 @@ type UserServiceInterface interface {
 }
 
 type UserClaims struct {
-	Id      int    `json:"id"`
+	Id      string `json:"id"`
 	Email   string `json:"firstname"`
 	Profile string `json:"profile"`
 	jwt.StandardClaims

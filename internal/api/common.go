@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
@@ -15,12 +14,10 @@ func getContext(c *gin.Context) (models.Context, error) {
 	langStr := fmt.Sprintf("%s", lang)
 
 	userIdValue, _ := c.Get("userId")
-	userIdStr := fmt.Sprintf("%s", userIdValue)
-	if userIdStr == "" {
+	userId := fmt.Sprintf("%s", userIdValue)
+	if userId == "" {
 		return models.Context{}, errors.New(messages.GetMessage(langStr, "NoUserId"))
 	}
-
-	userId, _ := strconv.Atoi(userIdStr)
 
 	userTypeValue, _ := c.Get("userType")
 	userType := fmt.Sprintf("%s", userTypeValue)

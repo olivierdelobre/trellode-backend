@@ -15,6 +15,7 @@ import (
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/google/uuid"
 	"github.com/nfnt/resize"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -29,8 +30,7 @@ type BackgroundRepository struct {
 type BackgroundRepositoryInterface interface {
 	GetBackground(models.Context, int) (*models.Background, int, error)
 	GetBackgrounds(models.Context) ([]*models.Background, int, error)
-	//CreateBackground(models.Context, []byte) (int, int, error)
-	CreateBackground(models.Context, string) (int, int, error)
+	CreateBackground(models.Context, string) (string, int, error)
 	DeleteBackground(models.Context, int) (int, error)
 }
 
@@ -74,34 +74,10 @@ func (repo BackgroundRepository) GetBackgrounds(context models.Context) ([]*mode
 	return backgrounds, http.StatusOK, nil
 }
 
-/*
-	func (repo BackgroundRepository) CreateBackground(context models.Context, data []byte) (int, int, error) {
-		background := models.Background{}
-		// override userId
-		background.UserID = context.UserId
-		background.Data = data
-
-		// calculate dominant color of an image
-		img, _, err := image.Decode(bytes.NewReader(data))
-		if err != nil {
-			return 0, http.StatusInternalServerError, err
-		}
-		averageColor := averageColor(img)
-		r, g, b, _ := averageColor.RGBA()
-		colorCss := fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
-		background.Color = colorCss
-
-		err = repo.db.Create(&background).Error
-		if err != nil {
-			return 0, http.StatusInternalServerError, err
-		}
-
-		return background.ID, http.StatusCreated, nil
-	}
-*/
-func (repo BackgroundRepository) CreateBackground(context models.Context, base64Data string) (int, int, error) {
+func (repo BackgroundRepository) CreateBackground(context models.Context, base64Data string) (string, int, error) {
 	background := models.Background{}
 	// override userId
+	background.ID = uuid.NewString()
 	background.UserID = context.UserId
 	background.Data = base64Data
 
@@ -113,13 +89,13 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 
 	decoded, err := base64.StdEncoding.DecodeString(dataNoHeader)
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// calculate dominant color of an image
 	img, _, err := image.Decode(bytes.NewReader(decoded))
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// resize
@@ -141,7 +117,7 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 		err = png.Encode(&buf, resizedImg)
 	}
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 	base64Str := base64.StdEncoding.EncodeToString(buf.Bytes())
 	background.Data = header + base64Str
@@ -150,19 +126,19 @@ func (repo BackgroundRepository) CreateBackground(context models.Context, base64
 
 	err = tx.Create(&background).Error
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// log operation
 	_, severity, err := repo.logService.CreateLog(context, tx, &models.Log{
 		UserID:         context.UserId,
-		BoardID:        0, // not related to a specific board
+		BoardID:        "", // not related to a specific board
 		Action:         "createbackground",
 		ActionTargetID: background.ID,
 	})
 	if err != nil {
 		tx.Rollback()
-		return 0, severity, err
+		return "", severity, err
 	}
 
 	tx.Commit()
@@ -175,7 +151,7 @@ func (repo BackgroundRepository) DeleteBackground(context models.Context, id int
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if background.ID == 0 {
+	if background.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BackgroundNotFound"))
 	}
 
@@ -196,7 +172,7 @@ func (repo BackgroundRepository) DeleteBackground(context models.Context, id int
 	// log operation
 	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
 		UserID:         context.UserId,
-		BoardID:        0, // not related to a specific board
+		BoardID:        "", // not related to a specific board
 		Action:         "deletebackground",
 		ActionTargetID: background.ID,
 	})

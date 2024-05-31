@@ -7,6 +7,7 @@ import (
 
 	"trellode-go/internal/utils/tools"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -29,6 +30,7 @@ func NewUserRepository(db *gorm.DB, log *zap.Logger) UserRepository {
 }
 
 func (repo UserRepository) RegisterUser(context models.Context, user *models.User) (*models.User, int, error) {
+	user.ID = uuid.NewString()
 	user.PasswordHash = tools.HashPassword(user.PasswordHash)
 
 	err := repo.db.Create(&user).Error

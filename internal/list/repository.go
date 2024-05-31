@@ -11,6 +11,7 @@ import (
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -22,11 +23,11 @@ type ListRepository struct {
 }
 
 type ListRepositoryInterface interface {
-	GetList(models.Context, int) (*models.List, int, error)
-	CreateList(models.Context, *models.List) (int, int, error)
+	GetList(models.Context, string) (*models.List, int, error)
+	CreateList(models.Context, *models.List) (string, int, error)
 	UpdateList(models.Context, *models.List) (int, error)
-	UpdateCardsOrder(models.Context, int, string) (int, error)
-	DeleteList(models.Context, int) (int, error)
+	UpdateCardsOrder(models.Context, string, string) (int, error)
+	DeleteList(models.Context, string) (int, error)
 }
 
 func NewListRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) ListRepository {
@@ -37,21 +38,29 @@ func NewListRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) 
 	}
 }
 
-func (repo ListRepository) GetList(context models.Context, id int) (*models.List, int, error) {
+func (repo ListRepository) GetList(context models.Context, id string) (*models.List, int, error) {
 	var list *models.List
 	err := repo.db.
-		Preload("Cards", repo.db.Order("Cards.position ASC")).
-		Preload("Cards.Comments", repo.db.Order("Cards.Comments.CreatedAt DESC")).
+		Preload("Cards", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("position ASC")
+		}).
+		Preload("Cards.Comments", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Where("id = ?", id).
 		First(&list).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, err
 	}
+	if list.ID == "" {
+		return nil, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
 
 	return list, http.StatusOK, nil
 }
 
-func (repo ListRepository) CreateList(context models.Context, list *models.List) (int, int, error) {
+func (repo ListRepository) CreateList(context models.Context, list *models.List) (string, int, error) {
+	list.ID = uuid.NewString()
 	list.ArchivedAt = nil
 
 	tx := repo.db.Begin()
@@ -59,7 +68,7 @@ func (repo ListRepository) CreateList(context models.Context, list *models.List)
 	err := tx.Create(&list).Error
 	if err != nil {
 		tx.Rollback()
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// log operation
@@ -71,7 +80,7 @@ func (repo ListRepository) CreateList(context models.Context, list *models.List)
 	})
 	if err != nil {
 		tx.Rollback()
-		return 0, severity, err
+		return "", severity, err
 	}
 
 	tx.Commit()
@@ -85,7 +94,7 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if listBefore.ID == 0 {
+	if listBefore.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
@@ -131,13 +140,13 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 	return http.StatusAccepted, nil
 }
 
-func (repo ListRepository) UpdateCardsOrder(context models.Context, listId int, idsOrdered string) (int, error) {
+func (repo ListRepository) UpdateCardsOrder(context models.Context, listId string, idsOrdered string) (int, error) {
 	// get list from db
 	list, severity, err := repo.GetList(context, listId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if list.ID == 0 {
+	if list.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
@@ -152,7 +161,7 @@ func (repo ListRepository) UpdateCardsOrder(context models.Context, listId int, 
 			tx.Rollback()
 			return http.StatusInternalServerError, err
 		}
-		if card.ID == 0 {
+		if card.ID == "" {
 			return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CardNotFound"))
 		}
 		card.Position = i + 1
@@ -180,12 +189,12 @@ func (repo ListRepository) UpdateCardsOrder(context models.Context, listId int, 
 	return http.StatusAccepted, nil
 }
 
-func (repo ListRepository) DeleteList(context models.Context, id int) (int, error) {
+func (repo ListRepository) DeleteList(context models.Context, id string) (int, error) {
 	list, severity, err := repo.GetList(context, id)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if list.ID == 0 {
+	if list.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 

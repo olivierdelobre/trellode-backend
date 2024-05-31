@@ -10,6 +10,7 @@ import (
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -21,10 +22,10 @@ type CardRepository struct {
 }
 
 type CardRepositoryInterface interface {
-	GetCard(models.Context, int) (*models.Card, int, error)
-	CreateCard(models.Context, *models.Card) (int, int, error)
+	GetCard(models.Context, string) (*models.Card, int, error)
+	CreateCard(models.Context, *models.Card) (string, int, error)
 	UpdateCard(models.Context, *models.Card) (int, error)
-	DeleteCard(models.Context, int) (int, error)
+	DeleteCard(models.Context, string) (int, error)
 }
 
 func NewCardRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) CardRepository {
@@ -35,34 +36,46 @@ func NewCardRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) 
 	}
 }
 
-func (repo CardRepository) GetCard(context models.Context, id int) (*models.Card, int, error) {
+func (repo CardRepository) GetCard(context models.Context, id string) (*models.Card, int, error) {
 	var card *models.Card
 	err := repo.db.
 		Preload("Comments", func(db *gorm.DB) *gorm.DB {
-			return db.Order("comments.created_at DESC")
+			return db.Order("created_at DESC")
+		}).
+		Preload("Checklists", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("title ASC")
+		}).
+		Preload("Checklists.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC")
 		}).
 		Where("id = ?", id).
 		First(&card).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, err
 	}
+	if card.ID == "" {
+		return nil, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CardNotFound"))
+	}
 
 	return card, http.StatusOK, nil
 }
 
-func (repo CardRepository) CreateCard(context models.Context, card *models.Card) (int, int, error) {
+func (repo CardRepository) CreateCard(context models.Context, card *models.Card) (string, int, error) {
 	// get cards of list to determine position of new card
 	var list *models.List
 	err := repo.db.
+		Preload("Cards", repo.db.Where("archived_at IS NULL")).
 		Where("id = ?", card.ListID).
 		First(&list).Error
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
-	if list.ID == 0 {
-		return 0, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	if list.ID == "" {
+		return "", http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
+	// generate UUID
+	card.ID = uuid.NewString()
 	card.ArchivedAt = nil
 	card.Position = len(list.Cards) + 1
 
@@ -71,14 +84,14 @@ func (repo CardRepository) CreateCard(context models.Context, card *models.Card)
 	err = tx.Create(&card).Error
 	if err != nil {
 		tx.Rollback()
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// log operation
 	boardId, err := repo.getBoardIdOfCard(card)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 	_, severity, err := repo.logService.CreateLog(context, tx, &models.Log{
 		UserID:         context.UserId,
@@ -88,7 +101,7 @@ func (repo CardRepository) CreateCard(context models.Context, card *models.Card)
 	})
 	if err != nil {
 		tx.Rollback()
-		return 0, severity, err
+		return "", severity, err
 	}
 
 	tx.Commit()
@@ -102,7 +115,7 @@ func (repo CardRepository) UpdateCard(context models.Context, card *models.Card)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if cardBefore.ID == 0 {
+	if cardBefore.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CardNotFound"))
 	}
 
@@ -141,7 +154,7 @@ func (repo CardRepository) UpdateCard(context models.Context, card *models.Card)
 		operation = "restorecard"
 	}
 	boardId, err := repo.getBoardIdOfCard(card)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
@@ -162,12 +175,12 @@ func (repo CardRepository) UpdateCard(context models.Context, card *models.Card)
 	return http.StatusAccepted, nil
 }
 
-func (repo CardRepository) DeleteCard(context models.Context, id int) (int, error) {
+func (repo CardRepository) DeleteCard(context models.Context, id string) (int, error) {
 	card, severity, err := repo.GetCard(context, id)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if card.ID == 0 {
+	if card.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
@@ -190,7 +203,7 @@ func (repo CardRepository) DeleteCard(context models.Context, id int) (int, erro
 
 	// log operation
 	boardId, err := repo.getBoardIdOfCard(card)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
@@ -210,13 +223,13 @@ func (repo CardRepository) DeleteCard(context models.Context, id int) (int, erro
 	return http.StatusAccepted, nil
 }
 
-func (repo CardRepository) getBoardIdOfCard(card *models.Card) (int, error) {
+func (repo CardRepository) getBoardIdOfCard(card *models.Card) (string, error) {
 	var list *models.List
 	err := repo.db.
 		Where("id = ?", card.ListID).
 		Find(&list).Error
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return list.BoardID, nil

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
 
@@ -17,13 +16,7 @@ func (s *server) getCard(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	card, severity, err := s.cardService.GetCard(context, id)
 	if err != nil {
@@ -67,7 +60,7 @@ func (s *server) updateCard(c *gin.Context) {
 	var card models.Card
 	id := c.Param("id")
 	if err := c.BindJSON(&card); err == nil {
-		if id != strconv.Itoa(card.ID) {
+		if id != card.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
 		}
 		severity, err := s.cardService.UpdateCard(context, &card)
@@ -90,13 +83,7 @@ func (s *server) deleteCard(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	severity, err := s.cardService.DeleteCard(context, id)
 	if err != nil {

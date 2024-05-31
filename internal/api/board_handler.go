@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
 
@@ -17,13 +16,7 @@ func (s *server) getBoard(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	board, severity, err := s.boardService.GetBoard(context, id)
 	if err != nil {
@@ -88,13 +81,8 @@ func (s *server) updateBoard(c *gin.Context) {
 	}
 
 	var board models.Board
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
+
 	if err := c.BindJSON(&board); err == nil {
 		if id != board.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
@@ -119,13 +107,7 @@ func (s *server) deleteBoard(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	severity, err := s.boardService.DeleteBoard(context, id)
 	if err != nil {

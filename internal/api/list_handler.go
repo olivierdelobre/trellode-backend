@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
 
@@ -17,13 +16,7 @@ func (s *server) getList(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	list, severity, err := s.listService.GetList(context, id)
 	if err != nil {
@@ -67,7 +60,7 @@ func (s *server) updateList(c *gin.Context) {
 	var list models.List
 	id := c.Param("id")
 	if err := c.BindJSON(&list); err == nil {
-		if id != strconv.Itoa(list.ID) {
+		if id != list.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
 		}
 		severity, err := s.listService.UpdateList(context, &list)
@@ -82,6 +75,10 @@ func (s *server) updateList(c *gin.Context) {
 	}
 }
 
+type ReorderCardsBody struct {
+	IDsOrdered string `json:"idsordered"`
+}
+
 func (s *server) updateCardsOrder(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
@@ -90,23 +87,22 @@ func (s *server) updateCardsOrder(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
+	id := c.Param("id")
+	var body ReorderCardsBody
+	if err := c.BindJSON(&body); err == nil {
+		if body.IDsOrdered == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "idsordered is required"})
+		}
+		severity, err := s.listService.UpdateCardsOrder(context, id, body.IDsOrdered)
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(severity, gin.H{"detail": err.Error()})
+			return
+		}
+		c.JSON(severity, nil)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
-	idsOrdered := c.Param("idsordered")
-
-	severity, err := s.listService.UpdateCardsOrder(context, id, idsOrdered)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
-		return
-	}
-	c.JSON(severity, nil)
-
 }
 
 func (s *server) deleteList(c *gin.Context) {
@@ -117,13 +113,7 @@ func (s *server) deleteList(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	severity, err := s.listService.DeleteList(context, id)
 	if err != nil {

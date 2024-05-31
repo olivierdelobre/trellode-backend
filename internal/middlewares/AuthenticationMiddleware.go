@@ -82,12 +82,12 @@ func AuthenticationMiddleware(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
 }
 
 type TokenInfo struct {
-	Uniqueid int    `json:"uniqueid"`
+	Uniqueid string `json:"uniqueid"`
 	Email    string `json:"username"`
 }
 
 type UserClaims struct {
-	Id      int    `json:"id"`
+	Id      string `json:"id"`
 	Email   string `json:"firstname"`
 	Profile string `json:"profile"`
 	jwt.StandardClaims

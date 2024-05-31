@@ -1,17 +1,17 @@
 USE trellode;
 
 CREATE TABLE logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    board_id INT NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    board_id CHAR(36) NOT NULL,
     action VARCHAR(20) NOT NULL,
-    action_target_id INT NOT NULL,
+    action_target_id CHAR(36) NOT NULL,
     changes TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     firstname VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
@@ -20,9 +20,8 @@ CREATE TABLE users (
 );
 
 CREATE TABLE backgrounds (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    -- data MEDIUMBLOB NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
     data MEDIUMTEXT NOT NULL,
     color varchar(7) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -30,50 +29,68 @@ CREATE TABLE backgrounds (
 
 -- Boards table
 CREATE TABLE boards (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
     title VARCHAR(255) NOT NULL,
-    background_id INT,
+    background_id CHAR(36),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     archived_at TIMESTAMP NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-     FOREIGN KEY (background_id) REFERENCES backgrounds(id)
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- FOREIGN KEY (user_id) REFERENCES users(id),
+    -- FOREIGN KEY (background_id) REFERENCES backgrounds(id)
 );
 
 -- Lists table
 CREATE TABLE lists (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    board_id INT NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    board_id CHAR(36) NOT NULL,
     title VARCHAR(255) NOT NULL,
     position INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    archived_at TIMESTAMP NULL,
-    FOREIGN KEY (board_id) REFERENCES boards(id)
+    archived_at TIMESTAMP NULL
+    -- FOREIGN KEY (board_id) REFERENCES boards(id)
 );
 
 -- Cards table
 CREATE TABLE cards (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    list_id INT NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    list_id CHAR(36) NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     position INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    archived_at TIMESTAMP NULL,
-    FOREIGN KEY (list_id) REFERENCES lists(id)
+    archived_at TIMESTAMP NULL
+    -- FOREIGN KEY (list_id) REFERENCES lists(id)
 );
 
 -- Comments table
 CREATE TABLE comments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    card_id INT NOT NULL,
-    user_id INT NOT NULL,
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    card_id CHAR(36) NOT NULL,
+    user_id CHAR(36) NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE checklists (
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    card_id CHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (card_id) REFERENCES cards(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    archived_at TIMESTAMP NULL
+);
+
+-- Cards table
+CREATE TABLE checklistitems (
+    id CHAR(36) DEFAULT UUID() PRIMARY KEY,
+    checklist_id CHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    checked TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

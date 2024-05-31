@@ -51,38 +51,6 @@ func (s *server) getBackgrounds(c *gin.Context) {
 	c.JSON(http.StatusOK, backgrounds)
 }
 
-/*
-	func (s *server) createBackground(c *gin.Context) {
-		context, err := getContext(c)
-		if err != nil {
-			logging.LogError(s.Log, c, err.Error())
-			c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-			return
-		}
-
-		file, header, err := c.Request.FormFile("file")
-		if err != nil {
-			logging.LogError(s.Log, c, err.Error())
-			c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-			return
-		}
-		log.Println(header.Filename)
-		buf := bytes.NewBuffer(nil)
-		if _, err := io.Copy(buf, file); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"detail": err.Error()})
-			return
-		}
-
-		id, severity, err := s.backgroundService.CreateBackground(context, buf.Bytes())
-		if err != nil {
-			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{"id": id})
-	}
-*/
 func (s *server) createBackground(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {

@@ -1,7 +1,7 @@
 package models
 
 type Context struct {
-	UserId   int
+	UserId   string
 	UserType string
 	Lang     string
 }

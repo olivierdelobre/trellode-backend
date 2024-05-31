@@ -8,6 +8,7 @@ import (
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -19,11 +20,11 @@ type CommentRepository struct {
 }
 
 type CommentRepositoryInterface interface {
-	GetComment(models.Context, int) (*models.Comment, int, error)
-	GetComments(models.Context, int) ([]*models.Comment, int, error)
-	CreateComment(models.Context, *models.Comment) (int, int, error)
+	GetComment(models.Context, string) (*models.Comment, int, error)
+	GetComments(models.Context, string) ([]*models.Comment, int, error)
+	CreateComment(models.Context, *models.Comment) (string, int, error)
 	UpdateComment(models.Context, *models.Comment) (int, error)
-	DeleteComment(models.Context, int) (int, error)
+	DeleteComment(models.Context, string) (int, error)
 }
 
 func NewCommentRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) CommentRepository {
@@ -34,17 +35,20 @@ func NewCommentRepository(db *gorm.DB, log *zap.Logger, logService log.LogServic
 	}
 }
 
-func (repo CommentRepository) GetComment(context models.Context, id int) (*models.Comment, int, error) {
+func (repo CommentRepository) GetComment(context models.Context, id string) (*models.Comment, int, error) {
 	var comment *models.Comment
 	err := repo.db.Where("id = ?", id).First(&comment).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, err
 	}
+	if comment.ID == "" {
+		return nil, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CommentNotFound"))
+	}
 
 	return comment, http.StatusOK, nil
 }
 
-func (repo CommentRepository) GetComments(context models.Context, boardId int) ([]*models.Comment, int, error) {
+func (repo CommentRepository) GetComments(context models.Context, boardId string) ([]*models.Comment, int, error) {
 	comments := []*models.Comment{}
 	err := repo.db.Where("card_id = ?", boardId).Find(&comments).Error
 	if err != nil {
@@ -54,21 +58,22 @@ func (repo CommentRepository) GetComments(context models.Context, boardId int) (
 	return comments, http.StatusOK, nil
 }
 
-func (repo CommentRepository) CreateComment(context models.Context, comment *models.Comment) (int, int, error) {
+func (repo CommentRepository) CreateComment(context models.Context, comment *models.Comment) (string, int, error) {
 	tx := repo.db.Begin()
 
+	comment.ID = uuid.NewString()
 	comment.UserID = context.UserId
 	err := tx.Create(&comment).Error
 	if err != nil {
 		tx.Rollback()
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// log operation
 	boardId, err := repo.getBoardIdOfComment(comment)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 	_, severity, err := repo.logService.CreateLog(context, tx, &models.Log{
 		UserID:         context.UserId,
@@ -78,7 +83,7 @@ func (repo CommentRepository) CreateComment(context models.Context, comment *mod
 	})
 	if err != nil {
 		tx.Rollback()
-		return 0, severity, err
+		return "", severity, err
 	}
 
 	tx.Commit()
@@ -92,7 +97,7 @@ func (repo CommentRepository) UpdateComment(context models.Context, comment *mod
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if commentBefore.ID == 0 {
+	if commentBefore.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CommentNotFound"))
 	}
 
@@ -117,7 +122,7 @@ func (repo CommentRepository) UpdateComment(context models.Context, comment *mod
 
 	// log operation
 	boardId, err := repo.getBoardIdOfComment(comment)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
@@ -138,13 +143,13 @@ func (repo CommentRepository) UpdateComment(context models.Context, comment *mod
 	return http.StatusAccepted, nil
 }
 
-func (repo CommentRepository) DeleteComment(context models.Context, id int) (int, error) {
+func (repo CommentRepository) DeleteComment(context models.Context, id string) (int, error) {
 	// get comment from db
 	commentBefore, severity, err := repo.GetComment(context, id)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if commentBefore.ID == 0 {
+	if commentBefore.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CommentNotFound"))
 	}
 
@@ -158,7 +163,7 @@ func (repo CommentRepository) DeleteComment(context models.Context, id int) (int
 
 	// log operation
 	boardId, err := repo.getBoardIdOfComment(commentBefore)
-	if boardId == 0 || err != nil {
+	if boardId == "" || err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
@@ -178,13 +183,13 @@ func (repo CommentRepository) DeleteComment(context models.Context, id int) (int
 	return http.StatusAccepted, nil
 }
 
-func (repo CommentRepository) getBoardIdOfComment(comment *models.Comment) (int, error) {
+func (repo CommentRepository) getBoardIdOfComment(comment *models.Comment) (string, error) {
 	var card *models.Card
 	err := repo.db.
 		Where("id = ?", comment.CardID).
 		First(&card).Error
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	// get list
 	var list *models.List
@@ -192,7 +197,7 @@ func (repo CommentRepository) getBoardIdOfComment(comment *models.Comment) (int,
 		Where("id = ?", card.ListID).
 		First(&list).Error
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return list.BoardID, nil

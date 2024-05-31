@@ -7,7 +7,7 @@ import (
 type BackgroundServiceInterface interface {
 	GetBackground(models.Context, int) (*models.Background, int, error)
 	GetBackgrounds(models.Context) ([]*models.Background, int, error)
-	CreateBackground(models.Context, []byte) (uint, int, error)
+	CreateBackground(models.Context, []byte) (string, int, error)
 	UpdateBackground(models.Context, *models.Background) (int, error)
 	DeleteBackground(models.Context, int) (int, error)
 }
@@ -32,7 +32,7 @@ func (s BackgroundService) GetBackgrounds(context models.Context) ([]*models.Bac
 }
 
 // func (s BackgroundService) CreateBackground(context models.Context, data []byte) (int, int, error) {
-func (s BackgroundService) CreateBackground(context models.Context, data string) (int, int, error) {
+func (s BackgroundService) CreateBackground(context models.Context, data string) (string, int, error) {
 	return s.repo.CreateBackground(context, data)
 }
 

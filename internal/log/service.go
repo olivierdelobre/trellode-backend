@@ -7,8 +7,8 @@ import (
 )
 
 type LogServiceInterface interface {
-	GetLogs(models.Context, int) ([]*models.Log, int, error)
-	CreateLog(models.Context, *gorm.DB, *models.Log) (uint, int, error)
+	GetLogs(models.Context, string) ([]*models.Log, int, error)
+	CreateLog(models.Context, *gorm.DB, *models.Log) (string, int, error)
 }
 
 type LogService struct {
@@ -22,10 +22,10 @@ func NewLogService(repo LogRepositoryInterface) LogService {
 	}
 }
 
-func (s LogService) GetLogs(context models.Context, boardId int) ([]*models.Log, int, error) {
+func (s LogService) GetLogs(context models.Context, boardId string) ([]*models.Log, int, error) {
 	return s.repo.GetLogs(context, boardId)
 }
 
-func (s LogService) CreateLog(context models.Context, tx *gorm.DB, log *models.Log) (int, int, error) {
+func (s LogService) CreateLog(context models.Context, tx *gorm.DB, log *models.Log) (string, int, error) {
 	return s.repo.CreateLog(context, tx, log)
 }

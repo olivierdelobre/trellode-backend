@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"trellode-go/internal/utils/logging"
 
 	"github.com/gin-gonic/gin"
@@ -16,13 +15,7 @@ func (s *server) getLogs(c *gin.Context) {
 		return
 	}
 
-	boardIdValue := c.Query("boardid")
-	boardId, err := strconv.Atoi(boardIdValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	boardId := c.Query("boardid")
 
 	backgrounds, severity, err := s.logService.GetLogs(context, boardId)
 	if err != nil {

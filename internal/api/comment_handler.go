@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
 
@@ -17,13 +16,7 @@ func (s *server) getComment(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	comment, severity, err := s.commentService.GetComment(context, id)
 	if err != nil {
@@ -42,13 +35,7 @@ func (s *server) getComments(c *gin.Context) {
 		return
 	}
 
-	listIdValue := c.Param("id")
-	listId, err := strconv.Atoi(listIdValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	listId := c.Param("id")
 
 	lists, severity, err := s.commentService.GetComments(context, listId)
 	if err != nil {
@@ -92,7 +79,7 @@ func (s *server) updateComment(c *gin.Context) {
 	var comment models.Comment
 	id := c.Param("id")
 	if err := c.BindJSON(&comment); err == nil {
-		if id != strconv.Itoa(comment.ID) {
+		if id != comment.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
 		}
 		severity, err := s.commentService.UpdateComment(context, &comment)
@@ -115,13 +102,7 @@ func (s *server) deleteComment(c *gin.Context) {
 		return
 	}
 
-	idValue := c.Param("id")
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
-		return
-	}
+	id := c.Param("id")
 
 	severity, err := s.commentService.DeleteComment(context, id)
 	if err != nil {

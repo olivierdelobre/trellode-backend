@@ -13,6 +13,7 @@ import (
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/messages"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -24,11 +25,11 @@ type BoardRepository struct {
 }
 
 type BoardRepositoryInterface interface {
-	GetBoard(models.Context, int) (*models.Board, int, error)
+	GetBoard(models.Context, string) (*models.Board, int, error)
 	GetBoards(models.Context, bool) ([]*models.Board, int, error)
-	CreateBoard(models.Context, *models.Board) (int, int, error)
+	CreateBoard(models.Context, *models.Board) (string, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
-	DeleteBoard(models.Context, int) (int, error)
+	DeleteBoard(models.Context, string) (int, error)
 }
 
 func NewBoardRepository(db *gorm.DB, log *zap.Logger, logService log.LogService) BoardRepository {
@@ -39,7 +40,7 @@ func NewBoardRepository(db *gorm.DB, log *zap.Logger, logService log.LogService)
 	}
 }
 
-func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Board, int, error) {
+func (repo BoardRepository) GetBoard(context models.Context, id string) (*models.Board, int, error) {
 	var board *models.Board
 	err := repo.db.
 		Preload("Background").
@@ -48,12 +49,21 @@ func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Bo
 			return db.Where("archived_at IS NULL").Order("position ASC")
 		}).
 		Preload("Lists.Cards.Comments", func(db *gorm.DB) *gorm.DB {
-			return db.Order("comments.created_at DESC")
+			return db.Order("created_at DESC")
+		}).
+		Preload("Lists.Cards.Checklists", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("created_at DESC")
+		}).
+		Preload("Lists.Cards.Checklists.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC")
 		}).
 		Where("id = ?", id).
 		First(&board).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, err
+	}
+	if board.ID == "" {
+		return nil, http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
 	}
 
 	if board.Background != nil {
@@ -78,6 +88,13 @@ func (repo BoardRepository) GetBoard(context models.Context, id int) (*models.Bo
 		board.ListColor = colorToCSS(listColor)
 	}
 
+	// set openedAt
+	now := time.Now()
+	err = repo.db.Model(&models.Board{}).Where("id = ?", board.ID).Update("opened_at", now.Format("2006-01-02 15:04:05")).Error
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
 	return board, http.StatusOK, nil
 }
 
@@ -90,10 +107,11 @@ func (repo BoardRepository) GetBoards(context models.Context, archived bool) ([]
 	}
 	err := repo.db.
 		Preload("Background").
-		Preload("Lists", repo.db.Where("archived_at IS NULL")).
-		Preload("Lists.Cards", repo.db.Where("archived_at IS NULL")).
-		Preload("Lists.Cards.Comments").
+		//Preload("Lists", repo.db.Where("archived_at IS NULL")).
+		//Preload("Lists.Cards", repo.db.Where("archived_at IS NULL")).
+		//Preload("Lists.Cards.Comments").
 		Where(sql, context.UserId).
+		Order("title ASC").
 		Find(&boards).Error
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -109,8 +127,9 @@ func (repo BoardRepository) GetBoards(context models.Context, archived bool) ([]
 	return boards, http.StatusOK, nil
 }
 
-func (repo BoardRepository) CreateBoard(context models.Context, board *models.Board) (int, int, error) {
+func (repo BoardRepository) CreateBoard(context models.Context, board *models.Board) (string, int, error) {
 	// override userId
+	board.ID = uuid.NewString()
 	board.UserID = context.UserId
 	board.ArchivedAt = nil
 
@@ -118,7 +137,7 @@ func (repo BoardRepository) CreateBoard(context models.Context, board *models.Bo
 
 	err := tx.Omit("BackgroundID", "Background", "Lists").Create(&board).Error
 	if err != nil {
-		return 0, http.StatusInternalServerError, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	// log operation
@@ -130,7 +149,7 @@ func (repo BoardRepository) CreateBoard(context models.Context, board *models.Bo
 	})
 	if err != nil {
 		tx.Rollback()
-		return 0, severity, err
+		return "", severity, err
 	}
 
 	tx.Commit()
@@ -144,7 +163,7 @@ func (repo BoardRepository) UpdateBoard(context models.Context, board *models.Bo
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if boardBefore.ID == 0 {
+	if boardBefore.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoarddNotFound"))
 	}
 
@@ -198,12 +217,12 @@ func (repo BoardRepository) UpdateBoard(context models.Context, board *models.Bo
 	return http.StatusAccepted, nil
 }
 
-func (repo BoardRepository) DeleteBoard(context models.Context, id int) (int, error) {
+func (repo BoardRepository) DeleteBoard(context models.Context, id string) (int, error) {
 	board, severity, err := repo.GetBoard(context, id)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return severity, err
 	}
-	if board.ID == 0 {
+	if board.ID == "" {
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
 	}
 
@@ -372,8 +391,8 @@ func whatChanged(boardBefore *models.Board, boardAfter *models.Board) ([]*models
 	if boardBefore.BackgroundID != boardAfter.BackgroundID {
 		changes = append(changes, &models.LogChange{
 			Field:     "backgroundid",
-			FromValue: strconv.Itoa(boardBefore.BackgroundID),
-			ToValue:   strconv.Itoa(boardAfter.BackgroundID),
+			FromValue: boardBefore.BackgroundID,
+			ToValue:   boardAfter.BackgroundID,
 		})
 	}
 
