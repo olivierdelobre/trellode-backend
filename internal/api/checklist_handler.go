@@ -181,3 +181,30 @@ func (s *server) deleteChecklistItem(c *gin.Context) {
 
 	c.JSON(severity, nil)
 }
+
+func (s *server) updateChecklistItemsOrder(c *gin.Context) {
+	context, err := getContext(c)
+	if err != nil {
+		logging.LogError(s.Log, c, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		return
+	}
+
+	id := c.Param("id")
+	var body ReorderBody
+	if err := c.BindJSON(&body); err == nil {
+		if body.IDsOrdered == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "idsordered is required"})
+			return
+		}
+		severity, err := s.checklistService.UpdateChecklistItemsOrder(context, id, body.IDsOrdered)
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(severity, gin.H{"detail": err.Error()})
+			return
+		}
+		c.JSON(severity, nil)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+}

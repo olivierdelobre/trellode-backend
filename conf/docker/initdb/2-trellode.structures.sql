@@ -4,7 +4,7 @@ CREATE TABLE logs (
     id CHAR(36) DEFAULT UUID() PRIMARY KEY,
     user_id CHAR(36) NOT NULL,
     board_id CHAR(36) NOT NULL,
-    action VARCHAR(20) NOT NULL,
+    action VARCHAR(32) NOT NULL,
     action_target_id CHAR(36) NOT NULL,
     changes TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -90,6 +90,7 @@ CREATE TABLE checklistitems (
     id CHAR(36) DEFAULT UUID() PRIMARY KEY,
     checklist_id CHAR(36) NOT NULL,
     title VARCHAR(255) NOT NULL,
+    position INT NOT NULL,
     checked TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

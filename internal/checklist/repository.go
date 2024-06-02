@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 	"trellode-go/internal/log"
 	"trellode-go/internal/models"
@@ -25,6 +26,7 @@ type ChecklistRepositoryInterface interface {
 	CreateChecklist(models.Context, *models.Checklist) (string, int, error)
 	UpdateChecklist(models.Context, *models.Checklist) (int, error)
 	DeleteChecklist(models.Context, string) (int, error)
+	UpdateChecklistItemsOrder(models.Context, string, string) (int, error)
 
 	GetChecklistItem(models.Context, string) (*models.ChecklistItem, int, error)
 	CreateChecklistItem(models.Context, *models.ChecklistItem) (string, int, error)
@@ -44,7 +46,7 @@ func (repo ChecklistRepository) GetChecklist(context models.Context, id string) 
 	var checklist *models.Checklist
 	err := repo.db.
 		Preload("Items", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at ASC")
+			return db.Order("position ASC")
 		}).
 		Where("id = ?", id).
 		First(&checklist).Error
@@ -219,11 +221,25 @@ func (repo ChecklistRepository) GetChecklistItem(context models.Context, id stri
 }
 
 func (repo ChecklistRepository) CreateChecklistItem(context models.Context, checklistItem *models.ChecklistItem) (string, int, error) {
+	// get cards of list to determine position of new card
+	var checklist *models.Checklist
+	err := repo.db.
+		Preload("Items").
+		Where("id = ?", checklistItem.ChecklistID).
+		First(&checklist).Error
+	if err != nil {
+		return "", http.StatusInternalServerError, err
+	}
+	if checklist.ID == "" {
+		return "", http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ChecklistNotFound"))
+	}
+
 	checklistItem.ID = uuid.NewString()
+	checklistItem.Position = len(checklist.Items) + 1
 
 	tx := repo.db.Begin()
 
-	err := tx.Create(&checklistItem).Error
+	err = tx.Create(&checklistItem).Error
 	if err != nil {
 		tx.Rollback()
 		return "", http.StatusInternalServerError, err
@@ -322,6 +338,33 @@ func (repo ChecklistRepository) DeleteChecklistItem(context models.Context, id s
 		return http.StatusInternalServerError, err
 	}
 
+	// get checklist from db to update positions
+	checklistId := checklistItem.ChecklistID
+	checklist, severity, err := repo.GetChecklist(context, checklistId)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		tx.Rollback()
+		return severity, err
+	}
+	if checklist.ID == "" {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ChecklistNotFound"))
+	}
+
+	// update positions
+	newPosition := 0
+	for _, item := range checklist.Items {
+		// don't process removed record
+		if item.ID == id {
+			continue
+		}
+		newPosition++
+		err := tx.Model(&models.ChecklistItem{}).Where("id = ?", item.ID).Update("position", newPosition).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
 	// log operation
 	boardId, err := repo.getBoardIdOfChecklistItem(checklistItem)
 	if boardId == "" || err != nil {
@@ -333,6 +376,60 @@ func (repo ChecklistRepository) DeleteChecklistItem(context models.Context, id s
 		BoardID:        boardId,
 		Action:         "deletechecklist",
 		ActionTargetID: checklistItem.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
+
+	return http.StatusAccepted, nil
+}
+
+func (repo ChecklistRepository) UpdateChecklistItemsOrder(context models.Context, checklistId string, idsOrdered string) (int, error) {
+	// get checklist from db
+	checklist, severity, err := repo.GetChecklist(context, checklistId)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return severity, err
+	}
+	if checklist.ID == "" {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ChecklistNotFound"))
+	}
+
+	tx := repo.db.Begin()
+
+	idsOrderedSplit := strings.Split(idsOrdered, ",")
+
+	for i, id := range idsOrderedSplit {
+		var checklistItem *models.ChecklistItem
+		err := tx.Where("id = ?", id).First(&checklistItem).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+		if checklistItem.ID == "" {
+			return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ChecklistItemNotFound"))
+		}
+		checklistItem.Position = i + 1
+		err = tx.Save(&checklistItem).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	// log operation
+	boardId, err := repo.getBoardIdOfChecklist(checklist)
+	if boardId == "" || err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        boardId,
+		Action:         "reorderchecklistitems",
+		ActionTargetID: checklist.ID,
 	})
 	if err != nil {
 		tx.Rollback()

@@ -60,12 +60,26 @@ func (repo ListRepository) GetList(context models.Context, id string) (*models.L
 }
 
 func (repo ListRepository) CreateList(context models.Context, list *models.List) (string, int, error) {
+	// get lists of board to determine position of new list
+	var board *models.Board
+	err := repo.db.
+		Preload("Lists", repo.db.Where("archived_at IS NULL")).
+		Where("id = ?", list.BoardID).
+		First(&board).Error
+	if err != nil {
+		return "", http.StatusInternalServerError, err
+	}
+	if board.ID == "" {
+		return "", http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
+	}
+
 	list.ID = uuid.NewString()
 	list.ArchivedAt = nil
+	list.Position = len(board.Lists) + 1
 
 	tx := repo.db.Begin()
 
-	err := tx.Create(&list).Error
+	err = tx.Create(&list).Error
 	if err != nil {
 		tx.Rollback()
 		return "", http.StatusInternalServerError, err
@@ -98,6 +112,19 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
 	}
 
+	// get lists of board to reassign positions (if something was archived or restored)
+	var board *models.Board
+	err = repo.db.
+		Preload("Lists", repo.db.Where("archived_at IS NULL")).
+		Where("id = ?", list.BoardID).
+		First(&board).Error
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	if board.ID == "" {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
+	}
+
 	// what changed?
 	changes, err := whatChanged(listBefore, list)
 	if err != nil {
@@ -115,6 +142,24 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 	if err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
+	}
+
+	// reassign positions
+	newPosition := 0
+	for _, loopList := range board.Lists {
+		if loopList.ID == list.ID {
+			loopList = *list
+		}
+		if loopList.ArchivedAt != nil {
+			continue
+		}
+		newPosition++
+		list.Position = newPosition
+		err := tx.Model(&models.List{}).Where("id = ?", loopList.ID).Update("position", newPosition).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
 	}
 
 	// log operation
@@ -136,6 +181,8 @@ func (repo ListRepository) UpdateList(context models.Context, list *models.List)
 		tx.Rollback()
 		return severity, err
 	}
+
+	tx.Commit()
 
 	return http.StatusAccepted, nil
 }
@@ -162,6 +209,7 @@ func (repo ListRepository) UpdateCardsOrder(context models.Context, listId strin
 			return http.StatusInternalServerError, err
 		}
 		if card.ID == "" {
+			tx.Rollback()
 			return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "CardNotFound"))
 		}
 		card.Position = i + 1
@@ -232,6 +280,34 @@ func (repo ListRepository) DeleteList(context models.Context, id string) (int, e
 	if err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
+	}
+
+	// get board from db to update lists' positions
+	boardId := list.BoardID
+	var board models.Board
+	err = tx.Where("id = ?", boardId).First(&board).Error
+	if err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+	if board.ID == "" {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
+	}
+
+	// update positions of lists
+	newPosition := 0
+	for _, loopList := range board.Lists {
+		// don't process removed record
+		if loopList.ID == id {
+			continue
+		}
+		newPosition++
+		err := tx.Model(&models.List{}).Where("id = ?", loopList.ID).Update("position", newPosition).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
 	}
 
 	// log operation

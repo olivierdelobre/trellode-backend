@@ -11,6 +11,7 @@ type BoardServiceInterface interface {
 	GetBoards(models.Context, bool) ([]*models.Board, int, error)
 	CreateBoard(models.Context, *models.Board) (string, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
+	UpdateListsOrder(models.Context, string, string) (int, error)
 	DeleteBoard(models.Context, string) (int, error)
 }
 
@@ -67,4 +68,8 @@ func (s BoardService) DeleteBoard(context models.Context, id string) (int, error
 	}
 
 	return s.repo.DeleteBoard(context, id)
+}
+
+func (s BoardService) UpdateListsOrder(context models.Context, listId string, idsOrdered string) (int, error) {
+	return s.repo.UpdateListsOrder(context, listId, idsOrdered)
 }

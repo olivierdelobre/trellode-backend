@@ -46,7 +46,7 @@ func (repo CardRepository) GetCard(context models.Context, id string) (*models.C
 			return db.Where("archived_at IS NULL").Order("title ASC")
 		}).
 		Preload("Checklists.Items", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at ASC")
+			return db.Order("position ASC")
 		}).
 		Where("id = ?", id).
 		First(&card).Error
@@ -199,6 +199,34 @@ func (repo CardRepository) DeleteCard(context models.Context, id string) (int, e
 	if err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
+	}
+
+	// get list from db to update positions
+	listId := card.ListID
+	var list models.List
+	err = tx.Where("id = ?", listId).First(&list).Error
+	if err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+	if list.ID == "" {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
+
+	// update positions of cards
+	newPosition := 0
+	for _, loopCard := range list.Cards {
+		// don't process removed record
+		if loopCard.ID == id {
+			continue
+		}
+		newPosition++
+		err := tx.Model(&models.Card{}).Where("id = ?", loopCard.ID).Update("position", newPosition).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
 	}
 
 	// log operation

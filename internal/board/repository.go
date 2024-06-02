@@ -29,6 +29,7 @@ type BoardRepositoryInterface interface {
 	GetBoards(models.Context, bool) ([]*models.Board, int, error)
 	CreateBoard(models.Context, *models.Board) (string, int, error)
 	UpdateBoard(models.Context, *models.Board) (int, error)
+	UpdateListsOrder(models.Context, string, string) (int, error)
 	DeleteBoard(models.Context, string) (int, error)
 }
 
@@ -44,7 +45,9 @@ func (repo BoardRepository) GetBoard(context models.Context, id string) (*models
 	var board *models.Board
 	err := repo.db.
 		Preload("Background").
-		Preload("Lists", repo.db.Where("archived_at IS NULL")).
+		Preload("Lists", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("position ASC")
+		}).
 		Preload("Lists.Cards", func(db *gorm.DB) *gorm.DB {
 			return db.Where("archived_at IS NULL").Order("position ASC")
 		}).
@@ -55,7 +58,7 @@ func (repo BoardRepository) GetBoard(context models.Context, id string) (*models
 			return db.Where("archived_at IS NULL").Order("created_at DESC")
 		}).
 		Preload("Lists.Cards.Checklists.Items", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at ASC")
+			return db.Order("position ASC")
 		}).
 		Where("id = ?", id).
 		First(&board).Error
@@ -206,6 +209,56 @@ func (repo BoardRepository) UpdateBoard(context models.Context, board *models.Bo
 		Action:         operation,
 		ActionTargetID: board.ID,
 		Changes:        string(changesJson),
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
+
+	return http.StatusAccepted, nil
+}
+
+func (repo BoardRepository) UpdateListsOrder(context models.Context, boardId string, idsOrdered string) (int, error) {
+	// get list from db
+	board, severity, err := repo.GetBoard(context, boardId)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return severity, err
+	}
+	if board.ID == "" {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
+	}
+
+	tx := repo.db.Begin()
+
+	idsOrderedSplit := strings.Split(idsOrdered, ",")
+
+	for i, id := range idsOrderedSplit {
+		var list *models.List
+		err := tx.Where("id = ?", id).First(&list).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+		if list.ID == "" {
+			tx.Rollback()
+			return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+		}
+		list.Position = i + 1
+		err = tx.Save(&list).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	// log operation
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        boardId,
+		Action:         "reorderlists",
+		ActionTargetID: boardId,
 	})
 	if err != nil {
 		tx.Rollback()

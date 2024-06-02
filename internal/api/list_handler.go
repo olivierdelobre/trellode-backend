@@ -75,7 +75,7 @@ func (s *server) updateList(c *gin.Context) {
 	}
 }
 
-type ReorderCardsBody struct {
+type ReorderBody struct {
 	IDsOrdered string `json:"idsordered"`
 }
 
@@ -88,10 +88,11 @@ func (s *server) updateCardsOrder(c *gin.Context) {
 	}
 
 	id := c.Param("id")
-	var body ReorderCardsBody
+	var body ReorderBody
 	if err := c.BindJSON(&body); err == nil {
 		if body.IDsOrdered == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "idsordered is required"})
+			return
 		}
 		severity, err := s.listService.UpdateCardsOrder(context, id, body.IDsOrdered)
 		if err != nil {

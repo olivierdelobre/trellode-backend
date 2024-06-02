@@ -7,6 +7,7 @@ type ChecklistServiceInterface interface {
 	CreateChecklist(models.Context, *models.Checklist) (string, int, error)
 	UpdateChecklist(models.Context, *models.Checklist) (int, error)
 	DeleteChecklist(models.Context, string) (int, error)
+	UpdateChecklistItemsOrder(models.Context, string, string) (int, error)
 
 	GetChecklistItem(models.Context, string) (*models.ChecklistItem, int, error)
 	CreateChecklistItem(models.Context, *models.ChecklistItem) (string, int, error)
@@ -55,4 +56,8 @@ func (p ChecklistService) UpdateChecklistItem(context models.Context, board *mod
 
 func (p ChecklistService) DeleteChecklistItem(context models.Context, id string) (int, error) {
 	return p.repo.DeleteChecklistItem(context, id)
+}
+
+func (p ChecklistService) UpdateChecklistItemsOrder(context models.Context, checklistId string, idsOrdered string) (int, error) {
+	return p.repo.UpdateChecklistItemsOrder(context, checklistId, idsOrdered)
 }
