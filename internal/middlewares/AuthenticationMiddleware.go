@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -10,6 +10,7 @@ import (
 
 	"net/http"
 
+	toolbox_api "github.com/epfl-si/go-toolbox/api"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"go.uber.org/zap"
@@ -19,8 +20,9 @@ import (
 // don't really do authentication as it is delegated upstream in KrakenD, but this middleware aims to extract the userid from the Authorization header to use it as identity when creating/updating/deleting entities in the API
 func AuthenticationMiddleware(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		//fmt.Printf("---------- fullpath:%s\n", c.FullPath())
 		// no control for some endpoints
-		if strings.Contains(c.FullPath(), "/docs/") || strings.Contains(c.FullPath(), "/healthcheck") || strings.Contains(c.FullPath(), "/liveness") {
+		if strings.Contains(c.FullPath(), "/docs/") || strings.Contains(c.FullPath(), "/healthcheck") || strings.HasSuffix(c.FullPath(), "/liveness") || strings.Contains(c.FullPath(), "/users/register") || strings.Contains(c.FullPath(), "/users/authenticate") {
 			c.Set("userId", "probe")
 			c.Next()
 			return
@@ -57,14 +59,14 @@ func AuthenticationMiddleware(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
 			checkSuccessful, user, err := DecodeToken(log, c, authorization)
 			if err != nil {
 				logging.LogCustom(log, "error", reqMethod, reqUri, 500, "", "AuthenticationMiddleware: DecodeToken: "+err.Error())
-				c.JSON(http.StatusForbidden, gin.H{"error": messages.GetMessage(lang, "NotAuthorized")})
+				c.JSON(http.StatusForbidden, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(lang, "NotAuthorized"), err.Error(), "", nil))
 				c.Abort()
 				return
 			}
 
 			if !checkSuccessful {
-				logging.LogCustom(log, "error", reqMethod, reqUri, 500, "", "AuthenticationMiddleware: passed Bearer authorization '"+authorization+"' could not be validated against IDP")
-				c.JSON(http.StatusForbidden, gin.H{"error": messages.GetMessage(lang, "NotAuthorized")})
+				logging.LogCustom(log, "error", reqMethod, reqUri, 500, "", "AuthenticationMiddleware: passed Bearer authorization '"+authorization+"' could not be validated")
+				c.JSON(http.StatusForbidden, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(lang, "NotAuthorized"), messages.GetMessage(lang, "InvalidToken"), "", nil))
 				c.Abort()
 				return
 			}
@@ -74,7 +76,7 @@ func AuthenticationMiddleware(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
 			return
 		} else {
 			logging.LogCustom(log, "error", c.Request.Method, c.Request.RequestURI, 401, "", messages.GetMessage(lang, "NotAuthorized"))
-			c.JSON(http.StatusForbidden, gin.H{"error": messages.GetMessage(lang, "NotAuthorized")})
+			c.JSON(http.StatusForbidden, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(lang, "NotAuthorized"), messages.GetMessage(lang, "UnsupportedAuthorizationSchema"), "", nil))
 			c.Abort()
 			return
 		}
@@ -97,23 +99,32 @@ func DecodeToken(log *zap.Logger, c *gin.Context, tokenB64 string) (bool, TokenI
 	tokenB64 = strings.Replace(tokenB64, "Bearer ", "", 1)
 
 	// Parse the JWT
-	claims := UserClaims{}
-	parsedAccessToken, err := jwt.ParseWithClaims(tokenB64, claims, func(token *jwt.Token) (interface{}, error) {
+	parsedAccessToken, err := jwt.Parse(tokenB64, func(token *jwt.Token) (interface{}, error) {
+		// Make sure the token method conform to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return []byte(os.Getenv("TOKEN_SECRET")), nil
 	})
 	if err != nil {
 		return false, TokenInfo{}, err
 	}
 
-	// Check if the token is valid.
-	if !parsedAccessToken.Valid {
-		return false, TokenInfo{}, errors.New("token is not valid")
-	}
-
 	tokenInfo := TokenInfo{}
-	tokenInfo.Uniqueid = claims.Id
-	tokenInfo.Email = claims.Email
-	//fmt.Printf("---------- tokenInfo: %v\n", tokenInfo)
+	// Check if the token is valid
+	if claims, ok := parsedAccessToken.Claims.(jwt.MapClaims); ok && parsedAccessToken.Valid {
+		//fmt.Printf("Token valid, claims: %v\n", claims)
+		if id, ok := claims["id"].(string); ok {
+			tokenInfo.Uniqueid = id
+			fmt.Printf("id: %s\n", id)
+		}
+		if email, ok := claims["email"].(string); ok {
+			tokenInfo.Email = email
+			fmt.Printf("email: %s\n", email)
+		}
+	} else {
+		return false, TokenInfo{}, err
+	}
 
 	return true, tokenInfo, nil
 }

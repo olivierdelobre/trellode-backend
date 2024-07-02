@@ -15,9 +15,11 @@ type UserServiceInterface interface {
 }
 
 type UserClaims struct {
-	Id      string `json:"id"`
-	Email   string `json:"firstname"`
-	Profile string `json:"profile"`
+	Id        string `json:"id"`
+	Email     string `json:"email"`
+	Firstname string `json:"firstname"`
+	Lastname  string `json:"lastname"`
+	Profile   string `json:"profile"`
 	jwt.StandardClaims
 }
 
@@ -42,12 +44,14 @@ func (s UserService) Authenticate(context models.Context, user *models.User) (st
 		return "", "", severity, err
 	}
 	userClaims := UserClaims{
-		Id:      user.ID,
-		Email:   user.Email,
-		Profile: "user",
+		Id:        user.ID,
+		Email:     user.Email,
+		Firstname: user.Firstname,
+		Lastname:  user.Lastname,
+		Profile:   "user",
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: time.Now().Add(time.Hour * 3).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
 		},
 	}
 

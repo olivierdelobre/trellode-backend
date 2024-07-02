@@ -12,6 +12,9 @@ import (
 	"trellode-go/internal/user"
 	"trellode-go/internal/utils/config"
 	"trellode-go/internal/utils/logging"
+	"trellode-go/internal/utils/messages"
+
+	toolbox_api "github.com/epfl-si/go-toolbox/api"
 
 	"net/http"
 
@@ -83,7 +86,7 @@ func (s *server) registerUser(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -92,10 +95,10 @@ func (s *server) registerUser(c *gin.Context) {
 		user, severity, err := s.userService.RegisterUser(context, &user)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "RegisterUserFailure"), err.Error(), "", nil))
 			return
 		}
-		c.JSON(http.StatusOK, user)
+		c.JSON(http.StatusCreated, gin.H{"id": user.ID})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
@@ -105,7 +108,7 @@ func (s *server) authenticate(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -114,14 +117,14 @@ func (s *server) authenticate(c *gin.Context) {
 		accessToken, refreshToken, severity, err := s.userService.Authenticate(context, &user)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "AuthenticateUserFailure"), err.Error(), "", nil))
 			return
 		}
 
 		if accessToken != "" {
 			c.JSON(http.StatusOK, gin.H{"accesstoken": accessToken, "refreshtoken": refreshToken})
 		} else {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid credentials"})
+			c.JSON(http.StatusForbidden, gin.H{"error": messages.GetMessage(context.Lang, "InvalidCredentials")})
 		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

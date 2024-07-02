@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
+	"trellode-go/internal/utils/messages"
 
+	toolbox_api "github.com/epfl-si/go-toolbox/api"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,7 +14,7 @@ func (s *server) getBoard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -21,7 +23,7 @@ func (s *server) getBoard(c *gin.Context) {
 	board, severity, err := s.boardService.GetBoard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
+		c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "GetBoardFailure"), err.Error(), "", nil))
 		return
 	}
 	c.JSON(http.StatusOK, board)
@@ -31,7 +33,7 @@ func (s *server) getBoards(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -44,7 +46,7 @@ func (s *server) getBoards(c *gin.Context) {
 	boards, severity, err := s.boardService.GetBoards(context, archived)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
+		c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "GetBoardsFailure"), err.Error(), "", nil))
 		return
 	}
 	c.JSON(http.StatusOK, boards)
@@ -54,7 +56,7 @@ func (s *server) createBoard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -63,12 +65,12 @@ func (s *server) createBoard(c *gin.Context) {
 		board, severity, err := s.boardService.CreateBoard(context, &board)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "CreateBoardFailure"), err.Error(), "", nil))
 			return
 		}
 		c.JSON(severity, board)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
 	}
 }
 
@@ -76,7 +78,7 @@ func (s *server) updateBoard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -85,17 +87,17 @@ func (s *server) updateBoard(c *gin.Context) {
 
 	if err := c.BindJSON(&board); err == nil {
 		if id != board.ID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
+			c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "IdNotMatching"), "", "", nil))
 		}
 		severity, err := s.boardService.UpdateBoard(context, id, &board)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "UpdateBoardFailure"), err.Error(), "", nil))
 			return
 		}
 		c.JSON(severity, board)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
 	}
 }
 
@@ -103,7 +105,7 @@ func (s *server) deleteBoard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -112,7 +114,7 @@ func (s *server) deleteBoard(c *gin.Context) {
 	severity, err := s.boardService.DeleteBoard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
+		c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "DeleteBoardFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -123,7 +125,7 @@ func (s *server) updateListsOrder(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -137,11 +139,11 @@ func (s *server) updateListsOrder(c *gin.Context) {
 		severity, err := s.boardService.UpdateListsOrder(context, id, body.IDsOrdered)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "UpdateListsOrderFailure"), err.Error(), "", nil))
 			return
 		}
 		c.JSON(severity, nil)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
 	}
 }

@@ -32,12 +32,34 @@ Try ``make help`` for more details
 docker-compose up -d
 ```
 
-The API should be available on port 8080 of current host
+The API should be available on port 8080 of current host.
+
+Register:
+```
+# Password too short
+curl -v -X POST -H 'Content-Type: application/json' -d '{"email":"o.livier@gmail.com", "firstname":"Olivier", "lastname": "Delobre", "password": "azerty"}' 'localhost:8080/trellode-api/v1/users/register' | jq
+
+# Bad password strength
+curl -v -X POST -H 'Content-Type: application/json' -d '{"email":"o.livier@gmail.com", "firstname":"Olivier", "lastname": "Delobre", "password": "azertyazerty"}' 'localhost:8080/trellode-api/v1/users/register' | jq
+
+# Alrighty
+curl -v -X POST -H 'Content-Type: application/json' -d '{"email":"o.livier@gmail.com", "firstname":"Olivier", "lastname": "Delobre", "password": "azerTY1234+"}' 'localhost:8080/trellode-api/v1/users/register' | jq
+```
+
+Authenticate:
+```
+# Bad password
+curl -v -X POST -H 'Content-Type: application/json' -d '{"email":"o.livier@gmail.com", "password": "azerty"}' 'localhost:8080/trellode-api/v1/users/authenticate' | jq
+
+# Alrighty
+curl -v -X POST -H 'Content-Type: application/json' -d '{"email":"o.livier@gmail.com", "password": "azerTY1234+"}' 'localhost:8080/trellode-api/v1/users/authenticate' | jq
+```
 
 Get boards:
 ```
 curl -v -X OPTIONS -H 'Authorization: Bearer 1' 'localhost:8080/trellode-api/v1/boards' | jq
 curl -v -H 'Authorization: Bearer 1' 'localhost:8080/trellode-api/v1/boards' | jq
+curl -v -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjE1YmExZjRlLWQ2ODItNGY1NS04NTgzLWRkMzEwYTY3MjVlNyIsImVtYWlsIjoiby5saXZpZXJAZ21haWwuY29tIiwiZmlyc3RuYW1lIjoiT2xpdmllciIsImxhc3RuYW1lIjoiRGVsb2JyZSIsInByb2ZpbGUiOiJ1c2VyIiwiZXhwIjoxNzE5OTM2ODE2LCJpYXQiOjE3MTk5MjYwMTZ9.O427I0y2QVxBXc9r4yq3KCkw_vAHwRQzHCcz-6Y8akI' 'localhost:8080/trellode-api/v1/boards' | jq
 ```
 
 Get board:

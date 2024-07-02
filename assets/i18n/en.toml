@@ -1,35 +1,17 @@
-[NoMatchInLDAP]
-other = "You can't create an affiliation, you don't have an accred in EPFL, CL or CL-COURS"
-
-[HMACIsTempered]
-other = "HMAC is tempered"
-
-[OneTimeTokenExpired]
-other = "One time token has expired (> 60 mins), retry operation"
-
-[AffiliationExists]
-other = "Affiliation already exists for "
-
 [NotAuthorized]
-other = "Not authorized"
+other = "not authorized"
 
-[EduIdApiCallFailure]
-other = "Failed to call Switch EduId API"
+[PasswordNotMatchingPolicies]
+other = "password must contain uppercase and lowercase letters, numbers and special characters"
 
-[EduIdApiResponseParsingFailure]
-other = "Failed parsing Switch EduId API response"
+[PasswordTooShort]
+other = "password is too short, minimal length is 8"
 
-[CannotMarshallAffiliation]
-other = "Cannot unmarshal affiliation"
+[EmailAlreadyRegistered]
+other = "email already registered"
 
-[CannotBuildRequest]
-other = "Cannot build request"
+[InvalidCredentials]
+other = "invalid credentials"
 
-[CannotSendRequest]
-other = "Cannot send request"
-
-[CannotReadResponse]
-other = "Cannot read response"
-
-[InvalidAffiliationData]
-other = "Affiliation data is invalid"
+[IdNotMatching]
+other = "ID in URL and body must match"

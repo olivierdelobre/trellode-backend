@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"trellode-go/internal/models"
 	"trellode-go/internal/utils/logging"
+	"trellode-go/internal/utils/messages"
 
+	toolbox_api "github.com/epfl-si/go-toolbox/api"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,7 +14,7 @@ func (s *server) getCard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -21,7 +23,7 @@ func (s *server) getCard(c *gin.Context) {
 	card, severity, err := s.cardService.GetCard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
+		c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "GetCardFailure"), err.Error(), "", nil))
 		return
 	}
 	c.JSON(http.StatusOK, card)
@@ -31,7 +33,7 @@ func (s *server) createCard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -40,12 +42,12 @@ func (s *server) createCard(c *gin.Context) {
 		list, severity, err := s.cardService.CreateCard(context, &card)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "CreateCardFailure"), err.Error(), "", nil))
 			return
 		}
 		c.JSON(severity, list)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
 	}
 }
 
@@ -53,7 +55,7 @@ func (s *server) updateCard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -61,17 +63,17 @@ func (s *server) updateCard(c *gin.Context) {
 	id := c.Param("id")
 	if err := c.BindJSON(&card); err == nil {
 		if id != card.ID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "ID in URL and body must match"})
+			c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "IdNotMatching"), "", "", nil))
 		}
 		severity, err := s.cardService.UpdateCard(context, &card)
 		if err != nil {
 			logging.LogError(s.Log, c, err.Error())
-			c.JSON(severity, gin.H{"detail": err.Error()})
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "UpdateCardFailure"), err.Error(), "", nil))
 			return
 		}
 		c.JSON(severity, nil)
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
 	}
 }
 
@@ -79,7 +81,7 @@ func (s *server) deleteCard(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"detail": err.Error()})
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
 		return
 	}
 
@@ -88,7 +90,7 @@ func (s *server) deleteCard(c *gin.Context) {
 	severity, err := s.cardService.DeleteCard(context, id)
 	if err != nil {
 		logging.LogError(s.Log, c, err.Error())
-		c.JSON(severity, gin.H{"detail": err.Error()})
+		c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "DeleteCardFailure"), err.Error(), "", nil))
 		return
 	}
 
