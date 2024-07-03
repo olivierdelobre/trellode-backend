@@ -3,6 +3,7 @@ package list
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type ListRepositoryInterface interface {
 	CreateList(models.Context, *models.List) (string, int, error)
 	UpdateList(models.Context, *models.List) (int, error)
 	UpdateCardsOrder(models.Context, string, string) (int, error)
+	MoveCardToList(models.Context, int, int, string, int) (int, error)
 	DeleteList(models.Context, string) (int, error)
 }
 
@@ -226,6 +228,90 @@ func (repo ListRepository) UpdateCardsOrder(context models.Context, listId strin
 		BoardID:        list.BoardID,
 		Action:         "reordercards",
 		ActionTargetID: list.ID,
+	})
+	if err != nil {
+		tx.Rollback()
+		return severity, err
+	}
+
+	tx.Commit()
+
+	return http.StatusAccepted, nil
+}
+
+// indexes are on a 0..n basis
+func (repo ListRepository) MoveCardToList(context models.Context, sourceListIndex int, sourceCardIndex int, targetListId string, targetCardIndex int) (int, error) {
+	// get sourceList from db
+	targetList, severity, err := repo.GetList(context, targetListId)
+	if err != nil {
+		return severity, err
+	}
+	if targetList.ID == "" {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "ListNotFound"))
+	}
+	fmt.Printf("---------- targetList.ID: %s, cards: %d\n", targetList.ID, len(targetList.Cards))
+
+	// get board to determine the target list from index
+	var board *models.Board
+	err = repo.db.
+		Preload("Lists", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("position ASC")
+		}).
+		Preload("Lists.Cards", func(db *gorm.DB) *gorm.DB {
+			return db.Where("archived_at IS NULL").Order("position ASC")
+		}).
+		Where("id = ?", targetList.BoardID).
+		First(&board).Error
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	if board.ID == "" {
+		return http.StatusNotFound, errors.New(messages.GetMessage(context.Lang, "BoardNotFound"))
+	}
+
+	// get source list from index
+	sourceList := board.Lists[sourceListIndex]
+
+	// get source card
+	sourceCard := sourceList.Cards[sourceCardIndex]
+
+	tx := repo.db.Begin()
+
+	// update index of cards in targetList from targetCardIndex, shift them by one to make room for new card
+	for i := targetCardIndex; i < len(targetList.Cards); i++ {
+		card := targetList.Cards[i]
+		fmt.Printf("---------- set target list card with id %s position %d\n", card.ID, card.Position+1)
+		err = tx.Model(&card).Update("Position", card.Position+1).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	// change the listId and position of source card to assign it the targetList.ID with new position
+	err = tx.Model(&sourceCard).Updates(models.Card{ListID: targetList.ID, Position: targetCardIndex + 1}).Error
+	if err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+
+	// reorder sourceList.Cards, shift by -1 for indexes > sourceCardIndex
+	for i := sourceCardIndex + 1; i < len(sourceList.Cards); i++ {
+		card := sourceList.Cards[i]
+		fmt.Printf("---------- set source list card with id %s position %d\n", card.ID, card.Position-1)
+		err = tx.Model(&card).Update("Position", card.Position-1).Error
+		if err != nil {
+			tx.Rollback()
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	// log operation
+	_, severity, err = repo.logService.CreateLog(context, tx, &models.Log{
+		UserID:         context.UserId,
+		BoardID:        sourceList.BoardID,
+		Action:         "movecardtolist",
+		ActionTargetID: sourceList.ID,
 	})
 	if err != nil {
 		tx.Rollback()

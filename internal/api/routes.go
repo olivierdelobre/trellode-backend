@@ -22,6 +22,7 @@ func (s *server) Routes() {
 	v1.PUT("/lists/:id", s.updateList)
 	v1.DELETE("/lists/:id", s.deleteList)
 	v1.PUT("/lists/:id/order", s.updateCardsOrder)
+	v1.PUT("/lists/:id/move", s.moveCardToList)
 
 	v1.GET("/cards/:id", s.getCard)
 	v1.POST("/cards", s.createCard)
@@ -69,6 +70,7 @@ func (s *server) Routes() {
 	v1.OPTIONS("/backgrounds/:id", s.options)
 	v1.OPTIONS("/logs", s.options)
 	v1.OPTIONS("/lists/:id/order", s.options)
+	v1.OPTIONS("/lists/:id/move", s.options)
 	v1.OPTIONS("/checklists", s.options)
 	v1.OPTIONS("/checklists/:id", s.options)
 	v1.OPTIONS("/checklistitems", s.options)

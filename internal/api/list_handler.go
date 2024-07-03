@@ -108,6 +108,39 @@ func (s *server) updateCardsOrder(c *gin.Context) {
 	}
 }
 
+type MoveCardToListBody struct {
+	SourceListIndex int    `json:"sourcelistindex"`
+	SourceCardIndex int    `json:"sourcecardindex"`
+	TargetListId    string `json:"targetlistid"`
+	TargetCardIndex int    `json:"targetcardindex"`
+}
+
+func (s *server) moveCardToList(c *gin.Context) {
+	context, err := getContext(c)
+	if err != nil {
+		logging.LogError(s.Log, c, err.Error())
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "GetContextFailure"), err.Error(), "", nil))
+		return
+	}
+
+	var body MoveCardToListBody
+	if err := c.BindJSON(&body); err == nil {
+		if body.TargetListId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all fields are required"})
+			return
+		}
+		severity, err := s.listService.MoveCardToList(context, body.SourceListIndex, body.SourceCardIndex, body.TargetListId, body.TargetCardIndex)
+		if err != nil {
+			logging.LogError(s.Log, c, err.Error())
+			c.JSON(severity, toolbox_api.MakeError(c, "", severity, messages.GetMessage(context.Lang, "MoveCardToListFailure"), err.Error(), "", nil))
+			return
+		}
+		c.JSON(severity, nil)
+	} else {
+		c.JSON(http.StatusBadRequest, toolbox_api.MakeError(c, "", http.StatusBadRequest, messages.GetMessage(context.Lang, "InvalidJson"), err.Error(), "", nil))
+	}
+}
+
 func (s *server) deleteList(c *gin.Context) {
 	context, err := getContext(c)
 	if err != nil {

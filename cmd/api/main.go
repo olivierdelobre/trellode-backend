@@ -30,9 +30,9 @@ func main() {
 
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middlewares.CorsMiddleware(log))
 	r.Use(middlewares.AuthenticationMiddleware(db, log))
 	r.Use(middlewares.LoggingMiddleware(log))
-	r.Use(middlewares.CorsMiddleware(log))
 
 	s := api.NewServer(db, r, log)
 

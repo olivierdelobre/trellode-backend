@@ -116,11 +116,9 @@ func DecodeToken(log *zap.Logger, c *gin.Context, tokenB64 string) (bool, TokenI
 		//fmt.Printf("Token valid, claims: %v\n", claims)
 		if id, ok := claims["id"].(string); ok {
 			tokenInfo.Uniqueid = id
-			fmt.Printf("id: %s\n", id)
 		}
 		if email, ok := claims["email"].(string); ok {
 			tokenInfo.Email = email
-			fmt.Printf("email: %s\n", email)
 		}
 	} else {
 		return false, TokenInfo{}, err
